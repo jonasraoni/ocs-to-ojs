@@ -6,31 +6,40 @@ class Exporter {
     private $outputPath;
     private $force;
     private $conferences;
+    private $target;
 
     public static function run($argv)
     {
-        $options = getopt('i:o:p:f');
-        if (empty($options['i']) || empty($options['o'])) {
-            exit('Usage: export.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH [-f] [conference_path1 [conferenceN...]]');
+        $options = getopt('i:o:p:t:f');
+        if (empty($options['i']) || empty($options['o']) || empty($options['t'])) {
+            exit('Usage: export.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [conference_path1 [conferenceN...]]');
         }
 
         $conferences = array_filter(array_slice($argv, count($options) + count(array_filter($options, 'is_string')) + 1), 'strlen');
-        new static($options['i'], $options['o'], $conferences, isset($options['f']));
+        new static($options['i'], $options['o'], strtolower($options['t']), $conferences, isset($options['f']));
     }
 
-    private function __construct($ocsPath, $outputPath, $conferences, $force)
+    private function __construct($ocsPath, $outputPath, $target, $conferences, $force)
     {
-        ini_set('memory_limit', -1);
-        set_time_limit(0);
-        $this->runningPath = realpath(getcwd());
-        $this->ocsPath = realpath($ocsPath);
-        $this->outputPath = $outputPath;
-        $this->force = $force;
-        $this->conferences = $conferences;
-        $this->bootOcs();
-        $this->checkOcsVersion();
         $exception = null;
         try {
+            ini_set('memory_limit', -1);
+            set_time_limit(0);
+            $generators = [];
+            foreach (new FilesystemIterator('generators') as $generator) {
+                $generators[] = $generator->getBasename('.php');
+            }
+            if (!in_array($target, $generators)) {
+                throw new Exception('Invalid target argument, available OJS versions: ' . implode(', ', $generators));
+            }
+            $this->target = $target;
+            $this->runningPath = realpath(getcwd());
+            $this->ocsPath = realpath($ocsPath);
+            $this->outputPath = $outputPath;
+            $this->force = $force;
+            $this->conferences = $conferences;
+            $this->bootOcs();
+            $this->checkOcsVersion();
             $this->createOutputPath();
             $this->exportMetadata();
             $this->exportPapers();
@@ -93,6 +102,10 @@ class Exporter {
         $requiredVersion = '2.3.6.0';
         $version = implode('.', (array) reset($version));
         if ($version !== $requiredVersion) {
+            if ($this->force) {
+                $this->log('OCS version check failed, but the problem was ignored');
+                return;
+            }
             throw new Exception("This script is compatible only with OCS {$requiredVersion}, your OCS version {$version} must be downgraded/upgraded");
         }
         $this->log('OCS version checked');
@@ -138,7 +151,7 @@ class Exporter {
                 foreach ($publishedPaperDao->getPublishedPapersBySchedConfId($schedConf->getId())->toArray() as $paper) {
                     $this->log('Processing paper ID ' . $paper->getPaperId());
                     $track = isset($tracks[$paper->getTrackId()]) ? $tracks[$paper->getTrackId()] : null;
-                    require_once 'generators/stable-3_2_1.php';
+                    require_once "generators/{$this->target}.php";
                     $filename = "{$this->outputPath}/papers/{$conference->getId()}-{$schedConf->getId()}-{$paper->getTrackId()}-{$paper->getId()}.xml";
                     try {
                         NativeXmlGenerator::renderPaper($filename, $conference, $schedConf, $track, $paper);
