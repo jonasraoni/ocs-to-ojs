@@ -155,7 +155,7 @@ class Exporter {
                     $filename = "{$this->outputPath}/papers/{$conference->getId()}-{$schedConf->getId()}-{$paper->getTrackId()}-{$paper->getId()}.xml";
                     try {
                         NativeXmlGenerator::renderPaper($filename, $conference, $schedConf, $track, $paper);
-                    } catch(Throwable $e) {
+                    } catch(Exception $e) {
                         $this->log("Failed to generate paper with {$e}");
                         continue;
                     }
