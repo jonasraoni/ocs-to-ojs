@@ -158,15 +158,10 @@ class NativeXmlGenerator {
 		}
 
 		// Issue
-		$vol = $schedConf->getSequence();
-		$num = 1;
-		$year = date('Y', strtotime($schedConf->getStartDate()));
-		$title = $schedConf->getTitle(null);
-		$issueNode = $articleNode->appendChild($document->createElement('issue_identification'));
-		XMLCustomWriter::createChildWithText($document, $issueNode, 'volume', $vol, false);
-		XMLCustomWriter::createChildWithText($document, $issueNode, 'number', $num, false);
-		XMLCustomWriter::createChildWithText($document, $issueNode, 'year', $year, false);
-		self::createLocalizedNodes($document, $issueNode, 'title', $title);
+		$issueNode = $publicationNode->appendChild($document->createElement('issue_identification'));
+		XMLCustomWriter::createChildWithText($document, $issueNode, 'volume', '{[#$ISSUE_VOLUME#]}', false);
+		XMLCustomWriter::createChildWithText($document, $issueNode, 'number', '{[#$ISSUE_NUMBER#]}', false);
+		XMLCustomWriter::createChildWithText($document, $issueNode, 'year', '{[#$ISSUE_YEAR#]}', false);
 
 		XMLCustomWriter::createChildWithText($document, $articleNode, 'pages', $paper->getPages(), false);
 
@@ -184,7 +179,7 @@ class NativeXmlGenerator {
 			$authorNode->setAttribute('primary_contact', 'true');
 		}
 		self::setAttributes($authorNode, [
-			'user_group_ref' => 'ROLE_NAME_AUTHOR',
+			'user_group_ref' => '{[#ROLE_NAME_AUTHOR#]}',
 			'seq' => $seq,
 			'id' => $author->getId()
 		]);
@@ -213,21 +208,21 @@ class NativeXmlGenerator {
 		if (!$genreMap) {
 			AppLocale::requireComponents([LOCALE_COMPONENT_OCS_AUTHOR]);
 			foreach ([
-				'author.submit.suppFile.researchInstrument' => 'GENRE_NAME_RESEARCHINSTRUMENT',
-				'author.submit.suppFile.researchMaterials' => 'GENRE_NAME_RESEARCHMATERIALS',
-				'author.submit.suppFile.researchResults' => 'GENRE_NAME_RESEARCHRESULTS',
-				'author.submit.suppFile.transcripts' => 'GENRE_NAME_TRANSCRIPTS',
-				'author.submit.suppFile.dataAnalysis' => 'GENRE_NAME_DATAANALYSIS',
-				'author.submit.suppFile.dataSet' => 'GENRE_NAME_DATASET',
-				'author.submit.suppFile.sourceText' => 'GENRE_NAME_SOURCETEXTS',
+				'author.submit.suppFile.researchInstrument' => '{[#GENRE_NAME_RESEARCHINSTRUMENT#]}',
+				'author.submit.suppFile.researchMaterials' => '{[#GENRE_NAME_RESEARCHMATERIALS#]}',
+				'author.submit.suppFile.researchResults' => '{[#GENRE_NAME_RESEARCHRESULTS#]}',
+				'author.submit.suppFile.transcripts' => '{[#GENRE_NAME_TRANSCRIPTS#]}',
+				'author.submit.suppFile.dataAnalysis' => '{[#GENRE_NAME_DATAANALYSIS#]}',
+				'author.submit.suppFile.dataSet' => '{[#GENRE_NAME_DATASET#]}',
+				'author.submit.suppFile.sourceText' => '{[#GENRE_NAME_SOURCETEXTS#]}',
 			] as $sourceGenre => $targetGenre) {
 				$genreMap[__($sourceGenre)] = $targetGenre;
 			}
 			$genreMap += [
-				'OTHER' => 'GENRE_NAME_OTHER',
-				'SUBMISSION' => 'GENRE_NAME_SUBMISSION',
-				'STYLE' => 'GENRE_NAME_STYLE',
-				'IMAGE' => 'GENRE_NAME_IMAGE'
+				'OTHER' => '{[#GENRE_NAME_OTHER#]}',
+				'SUBMISSION' => '{[#GENRE_NAME_SUBMISSION#]}',
+				'STYLE' => '{[#GENRE_NAME_STYLE#]}',
+				'IMAGE' => '{[#GENRE_NAME_IMAGE#]}'
 			];
 		}
 
