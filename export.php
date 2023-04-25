@@ -4,15 +4,16 @@ class Exporter {
     private $runningPath;
     private $ocsPath;
     private $outputPath;
-    private $force;
-    private $conferences;
+    private $force = false;
+    private $conferences = [];
     private $target;
+    private $uniqueTrackIds = [];
 
     public static function run($argv)
     {
-        $options = getopt('i:o:p:t:f');
+        $options = getopt('i:o:t:f');
         if (empty($options['i']) || empty($options['o']) || empty($options['t'])) {
-            exit('Usage: export.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [conference_path1 [conferenceN...]]');
+            exit("Usage:\nexport.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [conference_path1 [conferenceN...]]");
         }
 
         $conferences = array_filter(array_slice($argv, count($options) + count(array_filter($options, 'is_string')) + 1), 'strlen');
@@ -89,8 +90,7 @@ class Exporter {
         echo "{$message}\n";
     }
 
-    private function checkOcsVersion() {
-        $this->log('Checking OCS version');
+    private function getOcsVersion() {
         $version = $this->readAll(
             "SELECT v.major, v.minor, v.revision, v.build
             FROM versions v
@@ -99,8 +99,14 @@ class Exporter {
                 AND v.product_type = 'core'
                 AND v.product = 'ocs2'"
         );
+        return implode('.', (array) reset($version));
+    }
+
+    private function checkOcsVersion() {
+        $this->log('Checking OCS version');
+
         $requiredVersion = '2.3.6.0';
-        $version = implode('.', (array) reset($version));
+        $version = $this->getOcsVersion();
         if ($version !== $requiredVersion) {
             if ($this->force) {
                 $this->log('OCS version check failed, but the problem was ignored');
