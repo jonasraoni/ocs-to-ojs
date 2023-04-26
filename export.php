@@ -299,6 +299,10 @@ class Exporter {
             $row = (object) $rs->GetRowAssoc(0);
             foreach ($row as &$value) {
                 $value = iconv('UTF-8', 'UTF-8//TRANSLIT', $value);
+                        $newValue = iconv('UTF-8', 'UTF-8//IGNORE', $value);
+                    }
+                    $value = trim($newValue);
+                }
             }
             $data[] = $row;
             $rs->MoveNext();
