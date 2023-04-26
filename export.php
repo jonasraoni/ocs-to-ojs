@@ -121,7 +121,11 @@ class Exporter {
     {
         $path = $this->outputPath . "/metadata.json";
         $this->log("Exporting OCS metadata to {$path}");
-        if (!file_put_contents($path, json_encode($this->getConferences(), JSON_PRETTY_PRINT))) {
+        if (!file_put_contents($path, json_encode([
+                'journals' => $this->getConferences(),
+                'ocs' => $this->getOcsVersion(),
+                'ojs' => str_replace('_', '.', explode('-', $this->target)[1])
+            ], JSON_PRETTY_PRINT))) {
             throw new Exception('Failed to generate the OCS metadata');
         }
         $this->log('Metadata exported');
@@ -156,9 +160,10 @@ class Exporter {
                 $tracks = $trackDao->getSchedConfTracks($schedConf->getId())->toAssociativeArray('id');
                 foreach ($publishedPaperDao->getPublishedPapersBySchedConfId($schedConf->getId())->toArray() as $paper) {
                     $this->log('Processing paper ID ' . $paper->getPaperId());
-                    $track = isset($tracks[$paper->getTrackId()]) ? $tracks[$paper->getTrackId()] : null;
+                    $trackId = $this->uniqueTrackIds[$paper->getTrackId()];
+                    $track = isset($tracks[$trackId]) ? $tracks[$trackId] : $trackId = null;
                     require_once "generators/{$this->target}.php";
-                    $filename = "{$this->outputPath}/papers/{$conference->getId()}-{$schedConf->getId()}-{$paper->getTrackId()}-{$paper->getId()}.xml";
+                    $filename = "{$this->outputPath}/papers/{$conference->getId()}-{$schedConf->getId()}-{$trackId}-{$paper->getId()}.xml";
                     try {
                         NativeXmlGenerator::renderPaper($filename, $conference, $schedConf, $track, $paper);
                     } catch(Exception $e) {
@@ -176,31 +181,19 @@ class Exporter {
     {
         $conferenceParams = substr(str_repeat('?,', count($this->conferences)), 0, -1);
         list($filter, $params) = count($this->conferences) ? [sprintf('WHERE c.path IN (%s)', $conferenceParams), $this->conferences] : ['', []];
-        
+
         $conferences = $this->readAll(
-            "SELECT c.conference_id, c.path, c.primary_locale, cs.setting_name, cs.setting_value, cs.locale
+            "SELECT c.conference_id, c.path
             FROM conferences c
-            LEFT JOIN conference_settings cs ON cs.conference_id = c.conference_id
             $filter",
             $params
         );
 
-        $conferences = array_values(
-            array_reduce($conferences, function($conferences, $conference) {
-                $conferences[$conference->conference_id] = isset($conferences[$conference->conference_id])
-                    ? $conferences[$conference->conference_id]
-                    : [
-                        'id' => $conference->conference_id,
-                        'path' => $conference->path,
-                        'primaryLocale' => $conference->primary_locale,
-                    ];
-                if ($conference->locale) {
-                    $conferences[$conference->conference_id][$conference->setting_name][$conference->locale] = $conference->setting_value;
-                } else {
-                    $conferences[$conference->conference_id][$conference->setting_name] = $conference->setting_value;
-                }
-                return $conferences;
-            })
+        $conferences = array_map(
+            function ($conference) {
+                return ['id' => $conference->conference_id, 'path' => $conference->path];
+            },
+            $conferences
         );
 
         if (count($this->conferences) && count($conferences) !== count($this->conferences)) {
@@ -217,8 +210,8 @@ class Exporter {
         }
 
         foreach ($conferences as &$conference) {
-            $conference['scheduledConferences'] = $this->getScheduledConferences($conference['path']);
-
+            $conference['issues'] = $this->getScheduledConferences($conference['path']);
+            $conference['sections'] = $this->getTracks($conference['path']);
         }
 
         return $conferences;
@@ -230,7 +223,9 @@ class Exporter {
             "SELECT sc.sched_conf_id, sc.path, sc.seq, sc.start_date, sc.end_date, scs.setting_name, scs.setting_value, scs.locale
             FROM sched_confs sc
             INNER JOIN conferences c ON c.conference_id = sc.conference_id AND c.path = ?
-            LEFT JOIN sched_conf_settings scs ON scs.sched_conf_id = sc.sched_conf_id",
+            LEFT JOIN sched_conf_settings scs
+                ON scs.sched_conf_id = sc.sched_conf_id
+                AND scs.setting_name IN ('title', 'overview', 'introduction')",
             [$conference]
         );
 
@@ -245,48 +240,62 @@ class Exporter {
                         'startDate' => $scheduledConference->start_date,
                         'endDate' =>  $scheduledConference->end_date
                     ];
+                if ($scheduledConference->setting_name === 'title') {
+                    $scheduledConference->setting_value = strip_tags($scheduledConference->setting_value);
+                }
                 if ($scheduledConference->locale) {
                     $scheduledConferences[$scheduledConference->sched_conf_id][$scheduledConference->setting_name][$scheduledConference->locale] = $scheduledConference->setting_value;
                 } else {
                     $scheduledConferences[$scheduledConference->sched_conf_id][$scheduledConference->setting_name] = $scheduledConference->setting_value;
                 }
                 return $scheduledConferences;
-            })
+            }, [])
         );
-
-        foreach ($scheduledConferences as &$scheduledConference) {
-            $scheduledConference['tracks'] = $this->getTracks($conference, $scheduledConference['path']);
-        }
 
         return $scheduledConferences;
     }
 
-    private function getTracks($conference, $scheduledConference)
+    private function getTracks($conference)
     {
+        $locale = $this->readAll(
+            "SELECT c.primary_locale AS locale
+            FROM conferences c
+            WHERE c.path = ?",
+            [$conference->path]
+        );
+        $locale = array_pop($locale)->locale;
+
         $tracks = $this->readAll(
             "SELECT t.track_id, t.seq, ts.setting_name, ts.setting_value, ts.locale
             FROM tracks t
-            INNER JOIN sched_confs sc ON sc.sched_conf_id = t.sched_conf_id AND sc.path = ?
+            INNER JOIN sched_confs sc ON sc.sched_conf_id = t.sched_conf_id
             INNER JOIN conferences c ON c.conference_id = sc.conference_id AND c.path = ?
-            LEFT JOIN track_settings ts ON ts.track_id = t.track_id",
-            [$scheduledConference, $conference]
+            LEFT JOIN track_settings ts
+                ON ts.track_id = t.track_id
+                AND ts.setting_name IN ('title', 'abbrev', 'policy')",
+            [$conference]
         );
 
+        $tracks = array_reduce($tracks, function($tracks, $track) {
+            $tracks[$track->track_id] = isset($tracks[$track->track_id]) ? $tracks[$track->track_id] : ['id' => $track->track_id];
+            if ($track->setting_name !== 'policy') {
+                $track->setting_value = strip_tags($track->setting_value);
+            }
+            if ($track->locale) {
+                $tracks[$track->track_id][$track->setting_name][$track->locale] = $track->setting_value;
+            } else {
+                $tracks[$track->track_id][$track->setting_name] = $track->setting_value;
+            }
+            return $tracks;
+        }, []);
+
         return array_values(
-            array_reduce($tracks, function($tracks, $track) {
-                $tracks[$track->track_id] = isset($tracks[$track->track_id])
-                    ? $tracks[$track->track_id]
-                    : [
-                        'id' => $track->track_id,
-                        'seq' => $track->seq
-                    ];
-                if ($track->locale) {
-                    $tracks[$track->track_id][$track->setting_name][$track->locale] = $track->setting_value;
-                } else {
-                    $tracks[$track->track_id][$track->setting_name] = $track->setting_value;
-                }
+            array_reduce($tracks, function($tracks, $track) use ($locale) {
+                $title = isset($track['title'][$locale]) ? $track['title'][$locale] : reset($track['title']);
+                $tracks[$title] = isset($tracks[$title]) ? $tracks[$title] : $track;
+                $this->uniqueTrackIds[$track['id']] = $tracks[$title]['id'];
                 return $tracks;
-            })
+            }, [])
         );
     }
 
@@ -298,7 +307,8 @@ class Exporter {
         while (!$rs->EOF) {
             $row = (object) $rs->GetRowAssoc(0);
             foreach ($row as &$value) {
-                $value = iconv('UTF-8', 'UTF-8//TRANSLIT', $value);
+                if ($value !== null) {
+                    if (($newValue = iconv('UTF-8', 'UTF-8//TRANSLIT', $value)) === false) {
                         $newValue = iconv('UTF-8', 'UTF-8//IGNORE', $value);
                     }
                     $value = trim($newValue);
