@@ -61,7 +61,7 @@ class NativeXmlGenerator {
 		}
 
 		if ($track) {
-			$publicationNode->setAttribute('section_ref', $track->getAbbrev($locale));
+			$publicationNode->setAttribute('section_ref', "{[#TRACK_ID_{$track->getId()}#]}");
 		}
 
 		// ID
