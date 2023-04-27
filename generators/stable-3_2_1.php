@@ -61,7 +61,7 @@ class NativeXmlGenerator {
 		}
 
 		if ($track) {
-			$publicationNode->setAttribute('section_ref', "{[#TRACK_ID_{$track->getId()}#]}");
+			$publicationNode->setAttribute('section_ref', "{[#SECTION_ABBREVIATION#]}");
 		}
 
 		// ID
@@ -159,9 +159,9 @@ class NativeXmlGenerator {
 
 		// Issue
 		$issueNode = $publicationNode->appendChild($document->createElement('issue_identification'));
-		XMLCustomWriter::createChildWithText($document, $issueNode, 'volume', '{[#$ISSUE_VOLUME#]}', false);
-		XMLCustomWriter::createChildWithText($document, $issueNode, 'number', '{[#$ISSUE_NUMBER#]}', false);
-		XMLCustomWriter::createChildWithText($document, $issueNode, 'year', '{[#$ISSUE_YEAR#]}', false);
+		XMLCustomWriter::createChildWithText($document, $issueNode, 'volume', '{[#ISSUE_VOLUME#]}', false);
+		XMLCustomWriter::createChildWithText($document, $issueNode, 'number', '{[#ISSUE_NUMBER#]}', false);
+		XMLCustomWriter::createChildWithText($document, $issueNode, 'year', '{[#ISSUE_YEAR#]}', false);
 
 		XMLCustomWriter::createChildWithText($document, $articleNode, 'pages', $paper->getPages(), false);
 

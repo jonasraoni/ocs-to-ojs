@@ -183,17 +183,49 @@ class Exporter {
         list($filter, $params) = count($this->conferences) ? [sprintf('WHERE c.path IN (%s)', $conferenceParams), $this->conferences] : ['', []];
 
         $conferences = $this->readAll(
-            "SELECT c.conference_id, c.path
+            "SELECT c.conference_id, c.path, c.primary_locale, c.enabled, cs.setting_name, cs.setting_value, cs.locale
             FROM conferences c
-            $filter",
+            LEFT JOIN conference_settings cs
+                ON cs.conference_id = c.conference_id
+                AND cs.setting_name IN (
+                    'authorInformation',
+                    'contactEmail',
+                    'contactName',
+                    'description',
+                    'itemsPerPage',
+                    'lockssLicense',
+                    'numPageLinks',
+                    'privacyStatement',
+                    'readerInformation',
+                    'supportedFormLocales',
+                    'supportedLocales',
+                    'title'
+                )
+            $filter
+            ORDER BY c.seq",
             $params
         );
 
-        $conferences = array_map(
-            function ($conference) {
-                return ['id' => $conference->conference_id, 'path' => $conference->path];
-            },
-            $conferences
+        $conferences = array_values(
+            array_reduce($conferences, function($conferences, $conference) {
+                $conferences[$conference->conference_id] = isset($conferences[$conference->conference_id])
+                    ? $conferences[$conference->conference_id]
+                    : [
+                        'id' => $conference->conference_id,
+                        'path' => $conference->path,
+                        'primary_locale' => $conference->primary_locale,
+                        'enabled' => $conference->enabled
+                    ];
+                if ($conference->setting_name === 'title') {
+                    $conference->setting_value = strip_tags($conference->setting_value);
+                }
+                if ($conference->locale) {
+                    $conferences[$conference->conference_id][$conference->setting_name][$conference->locale] = $conference->setting_value;
+                } else {
+                    $conferences[$conference->conference_id][$conference->setting_name] = $conference->setting_value;
+                }
+                return $conferences;
+            }, [])
         );
 
         if (count($this->conferences) && count($conferences) !== count($this->conferences)) {
@@ -210,6 +242,11 @@ class Exporter {
         }
 
         foreach ($conferences as &$conference) {
+            $conference['primaryLocale'] = $conference['primary_locale'];
+            if (isset($conference['title'])) {
+                $conference['name'] = $conference['title'];
+            }
+            unset($conference['primary_locale'], $conference['title']);
             $conference['issues'] = $this->getScheduledConferences($conference['path']);
             $conference['sections'] = $this->getTracks($conference['path']);
         }
@@ -225,7 +262,8 @@ class Exporter {
             INNER JOIN conferences c ON c.conference_id = sc.conference_id AND c.path = ?
             LEFT JOIN sched_conf_settings scs
                 ON scs.sched_conf_id = sc.sched_conf_id
-                AND scs.setting_name IN ('title', 'overview', 'introduction')",
+                AND scs.setting_name IN ('title', 'overview', 'introduction')
+            ORDER BY sc.seq",
             [$conference]
         );
 
@@ -236,7 +274,8 @@ class Exporter {
                     : [
                         'id' => $scheduledConference->sched_conf_id,
                         'path' => $scheduledConference->path,
-                        'seq' => $scheduledConference->seq,
+                        'volume' => $scheduledConference->seq,
+                        'number' => 1,
                         'startDate' => $scheduledConference->start_date,
                         'endDate' =>  $scheduledConference->end_date
                     ];
@@ -252,7 +291,12 @@ class Exporter {
             }, [])
         );
 
-        return $scheduledConferences;
+        return array_map(function ($schedConf) {
+            $schedConf['description'] = $schedConf['overview'] ?: $schedConf['introduction'];
+            $schedConf['year'] = date('Y', strtotime($schedConf['endDate'] ? $schedConf['endDate'] : $schedConf['startDate']));
+            unset($schedConf['overview'], $schedConf['introduction']);
+            return $schedConf;
+        }, $scheduledConferences);
     }
 
     private function getTracks($conference)
@@ -272,7 +316,8 @@ class Exporter {
             INNER JOIN conferences c ON c.conference_id = sc.conference_id AND c.path = ?
             LEFT JOIN track_settings ts
                 ON ts.track_id = t.track_id
-                AND ts.setting_name IN ('title', 'abbrev', 'policy')",
+                AND ts.setting_name IN ('title', 'abbrev', 'policy')
+            ORDER BY sc.seq, t.seq",
             [$conference]
         );
 
