@@ -1,7 +1,6 @@
 <?php
 
 class Importer {
-    private $runningPath;
     private $ojsPath;
     private $metadata;
     private $inputPath;
@@ -10,7 +9,7 @@ class Importer {
     private $username;
     private $adminUsername;
 
-    public static function run($argv)
+    public static function run()
     {
         $options = getopt('i:o:u:a:p:f:');
         if (empty($options['i']) || empty($options['o']) || empty($options['u']) || empty($options['a'])) {
@@ -28,7 +27,6 @@ class Importer {
             session_write_close();
             ini_set('memory_limit', -1);
             set_time_limit(0);
-            $this->runningPath = realpath(getcwd());
             $this->ojsPath = realpath($ojsPath);
             $this->inputPath = $inputPath;
             $this->username = $username;
@@ -528,4 +526,4 @@ class Importer {
     }
 }
 
-Importer::run($argv);
+Importer::run();
