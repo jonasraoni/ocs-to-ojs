@@ -212,7 +212,7 @@ class Exporter {
                     ? $conferences[$conference->conference_id]
                     : [
                         'id' => $conference->conference_id,
-                        'path' => $conference->path,
+                        'urlPath' => $conference->path,
                         'primary_locale' => $conference->primary_locale,
                         'enabled' => $conference->enabled
                     ];
@@ -233,7 +233,7 @@ class Exporter {
                 $this->conferences,
                 array_map(
                     function ($conference) {
-                        return $conference->path;
+                        return $conference->urlPath;
                     },
                     $conferences
                 )
@@ -246,9 +246,14 @@ class Exporter {
             if (isset($conference['title'])) {
                 $conference['name'] = $conference['title'];
             }
+            foreach (['supportedFormLocales', 'supportedLocales'] as $field) {
+                if (isset($conference[$field])) {
+                    $conference[$field] = serialize($conference[$field]);
+                }
+            }
             unset($conference['primary_locale'], $conference['title']);
-            $conference['issues'] = $this->getScheduledConferences($conference['path']);
-            $conference['sections'] = $this->getTracks($conference['path']);
+            $conference['issues'] = $this->getScheduledConferences($conference['urlPath']);
+            $conference['sections'] = $this->getTracks($conference['urlPath']);
         }
 
         return $conferences;
