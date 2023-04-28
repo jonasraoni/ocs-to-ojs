@@ -26,7 +26,7 @@ class NativeXmlGenerator {
 			'date_submitted' => self::formatDate($paper->getDateSubmitted()),
 			'status' => 3,
 			'submission_progress' => 0,
-			'current_publication_id' => 1,
+			'current_publication_id' => $paper->getId(),
 			'stage' => 'production'
 		]);
 		$articleNode->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
