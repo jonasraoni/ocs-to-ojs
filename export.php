@@ -310,7 +310,7 @@ class Exporter {
             "SELECT c.primary_locale AS locale
             FROM conferences c
             WHERE c.path = ?",
-            [$conference->path]
+            [$conference]
         );
         $locale = array_pop($locale)->locale;
 
