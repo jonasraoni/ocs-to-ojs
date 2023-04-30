@@ -142,7 +142,6 @@ class Importer {
             } else {
                 $this->log("Creating journal {$journal->urlPath}");
                 //OJS 3.2
-                AppLocale::requireComponents(LOCALE_COMPONENT_APP_DEFAULT);
                 $application = Application::get();
                 $request = $application->getRequest();
 
@@ -185,8 +184,9 @@ class Importer {
                     'readerInformation',
                     'supportedFormLocales',
                     'supportedLocales',
+                    'supportedSubmissionLocales'
                 ] as $name) {
-                    if (is_object($value = $journal->{$name} ?? null) || strlen((string) $value)) {
+                    if (is_object($value = $journal->{$name} ?? null) || is_array($value) || strlen((string) $value)) {
                         if (is_object($value)) {
                             foreach ($value as $locale => $value) {
                                 $context->setData($name, $value, $locale);
@@ -199,6 +199,9 @@ class Importer {
                             $context->setData($name, $value);
                         }
                     }
+                }
+                foreach ($installedLocales as $locale) {
+                    AppLocale::requireComponents(LOCALE_COMPONENT_APP_DEFAULT, $locale);
                 }
                 $journal->localId = $contextService->add($context, $request)->getId();
                 $this->log("Journal ID {$journal->localId} created");
