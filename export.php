@@ -82,6 +82,9 @@ class Exporter {
         chdir(dirname(INDEX_FILE_LOCATION));
         require_once 'lib/pkp/includes/bootstrap.inc.php';
         Application::getRequest();
+        // Attempt to use UTF-8
+        (new DAO())->update("SET NAMES 'utf8'", false, true, false);
+        (new DAO())->update("SET client_encoding = 'UTF8'", false, true, false);
         $this->log('Booting complete');
     }
 
