@@ -22,7 +22,7 @@ class Exporter {
 
     private function __construct($ocsPath, $outputPath, $target, $conferences, $force)
     {
-        $exception = null;
+        $exception = $defaultException = new Exception('An unexpected error has happened');
         try {
             ini_set('memory_limit', -1);
             set_time_limit(0);
@@ -31,7 +31,7 @@ class Exporter {
                 $generators[] = $generator->getBasename('.php');
             }
             if (!in_array($target, $generators)) {
-                throw new Exception('Invalid target argument, available OJS versions: ' . implode(', ', $generators));
+                throw new DomainException('Invalid target argument, available OJS versions: ' . implode(', ', $generators));
             }
             $this->target = $target;
             $this->runningPath = realpath(getcwd());
@@ -44,11 +44,19 @@ class Exporter {
             $this->createOutputPath();
             $this->exportMetadata();
             $this->exportPapers();
+            $exception = null;
         } catch (Exception $exception) {
         } finally {
-            $this->log($exception ? "Export failed with {$exception}" : 'Export finished with success');
-            echo chr(7);
+            if ($exception === $defaultException && error_get_last()) {
+                $exception = new Exception(print_r(error_get_last(), true), 0, $exception);
+            }
+            if ($exception instanceof DomainException) {
+                $this->log($exception->getMessage());
+            } else {
+                $this->log($exception ? "Export failed with {$exception}" : 'Export finished with success');
+            }
         }
+        echo chr(7);
     }
 
     private function createOutputPath()
@@ -58,12 +66,12 @@ class Exporter {
         if (is_dir($this->outputPath)) {
             if (!$this->force) {
                 $this->outputPath = realpath($this->outputPath);
-                throw new Exception("Output path \"{$this->outputPath}\" already exists, quitting for security. Ensure the output path doesn't exist or use the -f option");
+                throw new DomainException("Output path \"{$this->outputPath}\" already exists, quitting for security. Ensure the output path doesn't exist or use the -f option");
             }
         } else {
             static::log("Creating output path {$this->outputPath}");
             if (!mkdir($this->outputPath, 0777, true)) {
-                throw new Exception('Failed to create output directory');
+                throw new DomainException('Failed to create output directory');
             }
         }
         $this->outputPath = realpath($this->outputPath);
@@ -74,7 +82,7 @@ class Exporter {
     private function bootOcs()
     {
         if (!is_file($this->ocsPath . "/config.inc.php")) {
-            throw new Exception("The path \"{$this->ocsPath}\" doesn't seem to be a valid OCS installation, the config.inc.php file wasn't found.");
+            throw new DomainException("The path \"{$this->ocsPath}\" doesn't seem to be a valid OCS installation, the config.inc.php file wasn't found.");
         }
 
         $this->log('Booting OCS');
@@ -115,7 +123,7 @@ class Exporter {
                 $this->log('OCS version check failed, but the problem was ignored');
                 return;
             }
-            throw new Exception("This script is compatible only with OCS {$requiredVersion}, your OCS version {$version} must be downgraded/upgraded");
+            throw new DomainException("This script is compatible only with OCS {$requiredVersion}, your OCS version {$version} must be downgraded/upgraded");
         }
         $this->log('OCS version checked');
     }
@@ -128,8 +136,9 @@ class Exporter {
                 'journals' => $this->getConferences(),
                 'ocs' => $this->getOcsVersion(),
                 'ojs' => str_replace('_', '.', explode('-', $this->target)[1])
-            ], JSON_PRETTY_PRINT))) {
-            throw new Exception('Failed to generate the OCS metadata');
+            ], JSON_PRETTY_PRINT)
+        )) {
+                throw new DomainException('Failed to generate the OCS metadata');
         }
         $this->log('Metadata exported');
     }
@@ -241,7 +250,7 @@ class Exporter {
                     $conferences
                 )
             );
-            throw new Exception('The following conferences were not found:' . implode(', ', $notFound));
+            throw new DomainException('The following conferences were not found:' . implode(', ', $notFound));
         }
 
         foreach ($conferences as &$conference) {
