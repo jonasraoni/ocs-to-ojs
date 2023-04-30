@@ -1,6 +1,10 @@
 <?php
 
 class Importer {
+    private $processedPapers = 0;
+    private $importedPapers = 0;
+    private $skippedPapers = 0;
+    private $failedPapers = 0;
     private $ojsPath;
     private $metadata;
     private $inputPath;
@@ -48,6 +52,10 @@ class Importer {
                 $this->log($exception->getMessage());
             } else {
                 $this->log($exception ? "Import failed with {$exception}" : 'Import finished with success');
+                $this->log("Processed papers: {$this->processedPapers}");
+                $this->log("Imported papers: {$this->importedPapers}");
+                $this->log("Skipped papers: {$this->skippedPapers}");
+                $this->log("Failed papers: {$this->failedPapers}");
             }
         }
         echo chr(7);
@@ -135,6 +143,7 @@ class Importer {
             } elseif ($this->forceLevel < 3) {
                 $missingJournals[] = $journal->urlPath;
             } else {
+                $this->log("Creating journal {$journal->urlPath}");
                 //OJS 3.2
                 AppLocale::requireComponents(LOCALE_COMPONENT_APP_DEFAULT);
                 $application = Application::get();
@@ -195,6 +204,7 @@ class Importer {
                     }
                 }
                 $journal->localId = $contextService->add($context, $request)->getId();
+                $this->log("Journal ID {$journal->localId} created");
             }
         }
 
@@ -205,6 +215,8 @@ class Importer {
                 . "\n- Let this tool to create the missing journals by re-running with the argument \"-f 2\", you might review/modify the data which will be used to create the journal at the metadata.json file."
                 . "\n- Remove the journal and its subdata from the metadata.json, this will cause its related papers to be skipped."
             );
+        } else {
+            $this->log("Journals matched successfully");
         }
 
         $this->log("Matching issues");
@@ -224,6 +236,7 @@ class Importer {
                 } elseif ($this->forceLevel < 4) {
                     $missingIssues[$journal->urlPath][] = "Issue volume {$issue->volume}, number {$issue->number}, year {$issue->year}";
                 } else {
+                    $this->log("Creating issue volume {$issue->volume} number {$issue->number} year {$issue->year} on journal {$journal->urlPath}");
                     $data = [
                         'journal_id' => $journal->localId,
                         'volume' => $issue->volume,
@@ -262,6 +275,7 @@ class Importer {
                             );
                         }
                     }
+                    $this->log("Issue ID {$issueId} created");
                 }
             }
         }
@@ -275,6 +289,8 @@ class Importer {
                 . "\n- Let this tool create the missing issues by re-running with the argument \"-f 3\", you might review/modify the data which will be used to create the issues at the metadata.json file."
                 . "\n- Remove the issue from the metadata.json, this will cause its related papers to be skipped.";
             throw new DomainException($message);
+        } else {
+            $this->log("Issues matched successfully");
         }
 
         $this->log("Matching sections");
@@ -314,6 +330,7 @@ class Importer {
                 } elseif ($this->forceLevel < 5) {
                     $missingSections[$journal->urlPath][] = 'Section with title "' . $section->title->{$mainLocale} . '", abbrev "' . $section->abbrev->{$mainLocale} . '"';
                 } else {
+                    $this->log("Creating section " . $section->abbrev->{$mainLocale} . " on journal {$journal->urlPath}");
                     $this->execute(
                         'INSERT INTO sections (journal_id, seq)
                         SELECT ?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM sections WHERE journal_id = ?)',
@@ -338,6 +355,7 @@ class Importer {
                             );
                         }
                     }
+                    $this->log("Section ID {$sectionId} created");
                 }
             }
         }
@@ -351,6 +369,8 @@ class Importer {
                 . "\n- Let this tool create the missing sections by re-running with the argument \"-f 4\", you might review/modify the data which will be used to create the sections at the metadata.json file."
                 . "\n- Remove the section from the metadata.json, this will cause its related papers to be skipped.";
             throw new DomainException($message);
+        } else {
+            $this->log("Sections matched successfully");
         }
 
         $this->log('Metadata Imported');
@@ -447,12 +467,24 @@ class Importer {
 
     private function importPapers()
     {
-        $this->log('Importing OJS papers');
+        $this->log('Importing papers into OJS');
 
         $processedFolder = "{$this->inputPath}/processed-papers";
         $this->log("Creating/checking the processed folder at {$processedFolder}");
         if (!is_dir($processedFolder)) {
             mkdir($processedFolder);
+        }
+
+        $processingFolder = "{$this->inputPath}/processing-papers";
+        $this->log("Creating/checking the processing folder at {$processingFolder}");
+        if (!is_dir($processingFolder)) {
+            mkdir($processingFolder);
+        }
+
+        $skippedFolder = "{$this->inputPath}/skipped-papers";
+        $this->log("Creating/checking the skipped folder at {$skippedFolder}");
+        if (!is_dir($skippedFolder)) {
+            mkdir($skippedFolder);
         }
 
         $conferenceMap = $schedConfMap = $trackMap = [];
@@ -474,23 +506,29 @@ class Importer {
                 $issue = $schedConfMap[$schedConfId] ?? null;
                 $section = $trackMap[$trackId] ?? null;
 
-                foreach (['journal' => $journal, 'issue' => $issue, 'section' => $section] as $name => $value) {
+                foreach (['journal' => $journal, 'issue' => $issue, 'section' => $trackId ? $section : true] as $name => $value) {
                     if (!$value || !isset($value->localId)) {
-                        $this->log("Paper #{$paperId} skipped due to missing {$name} mapping");
-                        continue;
+                        $this->log(
+                            "Paper {$paper->getFilename()} skipped due to missing {$name} mapping. "
+                            . (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the skipped folder'
+                        );
+                        ++$this->skippedPapers;
+                        continue 2;
                     }
                 }
 
-                $this->log("Processing paper #{$paperId}");
+                $this->log("Processing paper {$paper->getFilename()}");
+                ++$this->processedPapers;
 
                 $replaces = $this->getGenreMap($journal->localId) + $this->getRoleMap($journal->localId) + [
-                    'SECTION_ABBREVIATION' => $section->localAbbrev,
+                    'SECTION_ABBREVIATION' => $section ? $section->localAbbrev : null,
                     'ISSUE_VOLUME' => $issue->volume,
                     'ISSUE_NUMBER' => $issue->number,
                     'ISSUE_YEAR' => $issue->year
                 ];
 
-                $path = str_replace('\\', '/', preg_replace('/^[a-z]:/i', '', tempnam(sys_get_temp_dir(), 'tmp')));
+                $path = "{$processingFolder}/{$paper->getFilename()}";
+                $command = null;
                 try {
                     if (!file_put_contents(
                         $path,
@@ -502,16 +540,23 @@ class Importer {
                     }
                     $command = "{$this->phpPath} -d memory_limit=-1 " . escapeshellarg("{$this->ojsPath}/tools/importExport.php") . ' NativeImportExportPlugin import ' . escapeshellarg($path) . " {$journal->urlPath} {$this->username}";
                     $lastCount = $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count;
-                    if (passthru($command) !== null || $lastCount + 1 !== $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count) {
+                    $output = shell_exec($command);
+                    $this->log("Output from OJS:\n{$output}");
+                    if ($output === null || strpos($output, 'Fatal error') !== false || $lastCount + 1 !== (int) $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count) {
                         throw new DomainException('Failure while running the import command from the Native Import Export Plugin, you may retry with the setting [debug].display_errors defined as "On" on the config.inc.php');
                     }
-                    $this->log((rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the processed folder');
-                } catch (DomainException $e) {
-                    $this->log("Failed to process paper #{$paperId}: " . $e->getMessage());
-                } finally {
+                    $this->log("Paper imported successfully. " (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the processed folder');
+                    ++$this->importedPapers;
                     unlink($path);
+                    $this->log('');
+                } catch (DomainException $e) {
+                    $this->log("Failed to process paper {$paper->getFilename()}: " . $e->getMessage());
+                    if ($command) {
+                        file_put_contents("{$processingFolder}/{$paper->getBasename('.xml')}.txt", $command);
+                        $this->log("A copy of the XML file, together with its related command (.txt extension), was left at {$path} for debugging purposes");
+                    }
+                    ++$this->failedPapers;
                 }
-                break;
             }
         } finally {
             if ($hasBadFilter) {
