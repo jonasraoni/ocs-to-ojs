@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file import.php
  *
@@ -45,7 +46,7 @@ class Importer {
             exit("Usage:\nimport.php -i INPUT_PATH -o PATH_TO_OJS_INSTALLATION -u IMPORT_USERNAME -a ADMIN_USERNAME [-p PHP_EXECUTABLE_PATH] [-f LEVEL]");
         }
 
-        new static($options['i'], $options['o'], $options['u'], $options['a'], $options['p'] ?? 'php', $options['f'] ?? 0);
+        new static($options['o'], $options['i'], $options['u'], $options['a'], $options['p'] ?? 'php', $options['f'] ?? 0);
     }
 
     /**
@@ -58,7 +59,7 @@ class Importer {
             ini_set('memory_limit', -1);
             set_time_limit(0);
             $this->ojsPath = realpath($ojsPath);
-            $this->inputPath = $inputPath;
+            $this->inputPath = realpath($inputPath);
             $this->username = $username;
             $this->adminUsername = $adminUsername;
             $this->phpPath = preg_replace('`(?<!^) `', '^ ', escapeshellcmd($phpPath));
@@ -616,16 +617,26 @@ class Importer {
                         throw new DomainException('Failed to regenerate XML for import');
                     }
                     // Builds the command to import the paper through the NativeImportExportPlugin
-                    $command = "{$this->phpPath} -d memory_limit=-1 " . escapeshellarg("{$this->ojsPath}/tools/importExport.php") . ' NativeImportExportPlugin import ' . escapeshellarg($path) . " {$journal->urlPath} {$this->username}";
+                    $command = "{$this->phpPath} -d memory_limit=-1 " . escapeshellarg("{$this->ojsPath}/tools/importExport.php") . ' NativeImportExportPlugin import ' . escapeshellarg(preg_replace(['/[a-z]:/i', '/\\\\/'], ['', '/'], $path)) . " {$journal->urlPath} {$this->username}";
                     // Retrieve the last created publication ID, will be used to check if a new one was created (which indicates that the paper was at least partially imported)
                     $lastCount = $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count;
                     if ($output = shell_exec($command)) {
                         $this->log("Output from OJS:\n{$output}");
                     }
-                    if (strpos($output, 'Fatal error') !== false || $lastCount === (int) $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count) {
+
+                    AppLocale::requireComponents(LOCALE_COMPONENT_PKP_MANAGER);
+                    $errorMessages = ['Fatal error', __('plugins.importexport.common.validationErrors'), __('plugins.importexport.common.errorsOccured')];
+                    $hasErrorMessage = false;
+                    foreach ($errorMessages as $errorMessage) {
+                        if ($hasErrorMessage = strpos($output, $errorMessage) !== false) {
+                            break;
+                        }
+                    }
+
+                    if ($hasErrorMessage || $lastCount === (int) $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count) {
                         throw new DomainException('Failure while running the import command from the Native Import Export Plugin');
                     }
-                    $this->log("Paper imported successfully " . (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the processed folder');
+                    $this->log("Paper imported successfully. " . (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the processed folder');
                     ++$this->importedPapers;
                     unlink($path);
                 } catch (DomainException $e) {
@@ -662,20 +673,21 @@ class Importer {
      */
     private function getInsertId($table, $field)
     {
-        $dao = new DAO();
-        return $dao->getDataSource()->po_insert_id($table, $field);
+        $dao = new class() extends DAO {
+            public function getInsertId($table, $field)
+            {
+                return $this->_getInsertId($table, $field);
+            }
+        };
+        return $dao->getInsertId($table, $field);
     }
 
     /**
      * Runs the query and retrieves a clean array with each row while ensuring data is composed of valid UTF-8 characters
      */
-        private function readAll($query, $params = [])
+    private function readAll($query, $params = [])
     {
-        $dao = new DAO();
-        $rs = $dao->retrieve($query, $params);
-        $data = [];
-        while (!$rs->EOF) {
-            $row = (object) $rs->GetRowAssoc(0);
+        $updateRow = function ($row) {
             foreach ($row as &$value) {
                 if ($value !== null) {
                     // Attempt to convert to UTF-8 (just to detect bad encoded characters) and convert the problematic characters
@@ -686,10 +698,27 @@ class Importer {
                     $value = trim($newValue);
                 }
             }
-            $data[] = $row;
-            $rs->MoveNext();
+        };
+
+        $dao = new DAO();
+        $rs = $dao->retrieve($query, $params);
+        $data = [];
+
+        // OJS +3.3
+        if ($rs instanceof Generator) {
+            foreach ($rs as $row) {
+                $updateRow($row);
+                $data[] = $row;
+            }
+        } else {
+            while (!$rs->EOF) {
+                $row = (object) $rs->GetRowAssoc(0);
+                $updateRow($row);
+                $data[] = $row;
+                $rs->MoveNext();
+            }
+            $rs->Close();
         }
-        $rs->Close();
         return $data;
     }
 }

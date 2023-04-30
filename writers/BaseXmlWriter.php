@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @file writers/BaseXmlWriter.php
  *
@@ -99,7 +100,7 @@ abstract class BaseXmlWriter {
     protected function createChildWithText($node, $name, $value, $appendIfEmpty = true) {
         $childNode = null;
         if ($appendIfEmpty || $value != '') {
-            $childNode = $node->appendChild($this->document->createElement($name, $value));
+            $childNode = $node->appendChild($this->document->createElement($name));
             $childNode->appendChild($this->document->createTextNode($value));
         }
         return $childNode;
@@ -124,7 +125,7 @@ abstract class BaseXmlWriter {
         $primaryLocale = AppLocale::getPrimaryLocale();
 
         $localeCandidates = array();
-        $locales = $this->_getAllLocalesCacheContent();
+        $locales = $this->getLocales();
         foreach($locales as $locale => $localeData) {
             assert(isset($localeData['iso639-3']));
             if ($localeData['iso639-3'] == $iso3) {
@@ -164,7 +165,7 @@ abstract class BaseXmlWriter {
      */
     protected function getIso3FromIso1($iso1) {
         assert(strlen($iso1) == 2);
-        $locales = $this->_getAllLocalesCacheContent();
+        $locales = $this->getLocales();
         foreach($locales as $locale => $localeData) {
             if (substr($locale, 0, 2) == $iso1) {
                 assert(isset($localeData['iso639-3']));
@@ -177,7 +178,7 @@ abstract class BaseXmlWriter {
     /**
      * Retrieves locale metadata
      */
-    protected function _getAllLocalesCacheContent() {
+    protected function getLocales() {
         return [
             'bs_BA' => 
             [
