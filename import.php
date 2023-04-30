@@ -27,8 +27,6 @@ class Importer {
     {
         $exception = $defaultException = new Exception('An unexpected error has happened');
         try {
-            session_start();
-            session_write_close();
             ini_set('memory_limit', -1);
             set_time_limit(0);
             $this->ojsPath = realpath($ojsPath);
@@ -67,7 +65,6 @@ class Importer {
             throw new DomainException("The path \"{$this->ojsPath}\" doesn't seem to be a valid OJS installation, the config.inc.php file wasn't found.");
         }
 
-        $this->log('Booting OJS');
         require_once "{$this->ojsPath}/tools/bootstrap.inc.php";
         new CommandLineTool();
         $this->log('Booting complete');
