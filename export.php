@@ -54,12 +54,14 @@ class Exporter {
         try {
             ini_set('memory_limit', -1);
             set_time_limit(0);
-            $generators = [];
-            foreach (new FilesystemIterator('generators') as $generator) {
-                $generators[] = $generator->getBasename('.php');
+            $writers = [];
+            foreach (new FilesystemIterator('writers') as $writer) {
+                if (strpos($writer->getFilename(), 'stable') === 0) {
+                    $writers[] = $writer->getBasename('.php');
+                }
             }
-            if (!in_array($target, $generators)) {
-                throw new DomainException('Invalid target argument, available OJS versions: ' . implode(', ', $generators));
+            if (!in_array($target, $writers)) {
+                throw new DomainException('Invalid target argument, available OJS versions: ' . implode(', ', $writers));
             }
             $this->target = $target;
             $this->runningPath = realpath(getcwd());
@@ -222,11 +224,17 @@ class Exporter {
                     $this->log('Processing paper ID ' . $paper->getPaperId());
                     $trackId = $this->uniqueTrackIds[$paper->getTrackId()];
                     $track = isset($tracks[$trackId]) ? $tracks[$trackId] : $trackId = null;
-                    require_once "generators/{$this->target}.php";
+                    require_once "writers/{$this->target}.php";
                     $filename = "{$conference->getId()}-{$schedConf->getId()}-{$trackId}-{$paper->getId()}.xml";
                     $path = "{$this->outputPath}/papers/{$filename}";
                     try {
-                        NativeXmlGenerator::renderPaper($path, $conference, $schedConf, $track, $paper);
+                        /** @var class-string<BaseXmlWriter> */
+                        $className = ucwords(preg_replace('/[^a-z0-9]/', '', $this->target)) . 'Writer';
+                        /** @var BaseXmlWriter */
+                        $writer = new $className($conference, $schedConf, $track, $paper);
+                        if (!file_put_contents($path, $writer->process())) {
+                            throw new Exception("Failed to write paper to {$path}");
+                        }
                         $this->log("Paper XML generated as {$filename}");
                         ++$this->exportedPapers;
                     } catch(Exception $e) {
