@@ -65,9 +65,10 @@ You can start by running `php ${OCS_TO_OJS_PATH}/import.php`, it will display a 
 - **`-f LEVEL` (optional):** The script will do several checks before doing the import, the levels below will provide an interactive way to progress and decide how to solve each problem. The argument accepts values from `0` until `4`, where:
   - **`<= 0`:** No effect.
   - **`\>= 1`:** The script will ignore if your OJS version doesn't match the one you've specified at the [export](#2-export).
-  - **`\>= 2`:** The script will create missing journals.
-  - **`\>= 3`:** The script will create missing issues.
-  - **`\>= 4`:** The script will create missing sections.
+  - **`\>= 2`:** The script will ignore if your OJS installation is missing required locales.
+  - **`\>= 3`:** The script will create missing journals.
+  - **`\>= 4`:** The script will create missing issues.
+  - **`\>= 5`:** The script will create missing sections.
 
 Still about the `-f LEVEL`, when creating journals/issues/sections, the script will use the metadata from `${DATA_PATH}/metadata.json` to populate the structures. You're free to review/update anything on this file, as long as you keep the IDs intact. There are basically three options to solve conflicts:
 - Increase the "force level": Will create the missing data for you.

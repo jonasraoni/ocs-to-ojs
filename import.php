@@ -99,14 +99,40 @@ class Importer {
 
     private function importMetadata()
     {
-        $this->log("Importing OJS metadata");
+        $this->log("Importing metadata into OJS");
+
+        $this->log("Validating installed locales");
+        $uniqueLocales = [];
+        foreach ($this->metadata->journals as $journal) {
+            foreach (['supportedLocales', 'supportedFormLocales'] as $locales) {
+                if (isset($journal->locales)) {
+                    $uniqueLocales += array_flip($journal->locales);
+                }
+            }
+        }
+        $uniqueLocales = array_keys($uniqueLocales);
+
+        $rawLocales = $this->readAll('SELECT installed_locales AS locales FROM site')[0]->locales;
+        try {
+            $installedLocales = json_decode($rawLocales, null, 512, JSON_THROW_ON_ERROR);
+        } catch (Exception $e) {
+            if (!($installedLocales = @unserialize($rawLocales))) {
+                $installedLocales = explode(':', $rawLocales);
+            }
+        }
+        $installedLocales = (array) $installedLocales;
+
+        if (count($missingLocales = array_diff($uniqueLocales, $installedLocales)) && $this->forceLevel < 2) {
+            throw new DomainException('The conferences which are going to be imported require the following locales to be installed: ' . implode(', ', $missingLocales));
+        }
+        $this->log("Required locales are installed");
 
         $this->log("Matching journals");
         $missingJournals = [];
         foreach ($this->metadata->journals as $journal) {
             if ($row = $this->readAll('SELECT j.journal_id FROM journals j WHERE j.path = ?', [$journal->urlPath])[0] ?? null) {
                 $journal->localId = $row->journal_id;
-            } elseif ($this->forceLevel < 2) {
+            } elseif ($this->forceLevel < 3) {
                 $missingJournals[] = $journal->urlPath;
             } else {
                 //OJS 3.2
@@ -195,7 +221,7 @@ class Importer {
                     [$journal->localId, $issue->volume, $issue->number, $issue->year]
                 )[0] ?? null) {
                     $issue->localId = $row->issue_id;
-                } elseif ($this->forceLevel < 3) {
+                } elseif ($this->forceLevel < 4) {
                     $missingIssues[$journal->urlPath][] = "Issue volume {$issue->volume}, number {$issue->number}, year {$issue->year}";
                 } else {
                     $data = [
@@ -285,7 +311,7 @@ class Importer {
                 )[0] ?? null) {
                     $section->localId = $row->section_id;
                     $section->localAbbrev = $row->abbrev;
-                } elseif ($this->forceLevel < 4) {
+                } elseif ($this->forceLevel < 5) {
                     $missingSections[$journal->urlPath][] = 'Section with title "' . $section->title->{$mainLocale} . '", abbrev "' . $section->abbrev->{$mainLocale} . '"';
                 } else {
                     $this->execute(
