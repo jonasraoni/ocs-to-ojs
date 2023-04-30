@@ -249,9 +249,18 @@ class Exporter {
             if (isset($conference['title'])) {
                 $conference['name'] = $conference['title'];
             }
-            foreach (['supportedFormLocales', 'supportedLocales'] as $field) {
+            $nonEmptyLocaleList = null;
+            foreach (['supportedLocales', 'supportedFormLocales'] as $field) {
                 if (isset($conference[$field])) {
-                    $conference[$field] = serialize($conference[$field]);
+                    $conference[$field] = unserialize($conference[$field]);
+                    $nonEmptyLocaleList || $nonEmptyLocaleList = $conference[$field];
+                }
+            }
+            if ($nonEmptyLocaleList) {
+                foreach (['supportedFormLocales', 'supportedLocales', 'supportedSubmissionLocales'] as $field) {
+                    if (!isset($conference[$field])) {
+                        $conference[$field] = $nonEmptyLocaleList;
+                    }
                 }
             }
             unset($conference['primary_locale'], $conference['title']);
