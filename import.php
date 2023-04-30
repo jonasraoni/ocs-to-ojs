@@ -610,7 +610,7 @@ class Importer {
                     if (!file_put_contents(
                         $path,
                         preg_replace_callback('/\\{\\[#(\w+)#\\]\\}/', function ($match) use ($replaces) {
-                            return $replaces[$match[1]];
+                            return htmlspecialchars($replaces[$match[1]], ENT_QUOTES | ENT_SUBSTITUTE | ENT_XML1, 'UTF-8');
                         }, file_get_contents($paper))
                     )) {
                         throw new DomainException('Failed to regenerate XML for import');
