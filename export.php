@@ -215,9 +215,9 @@ class Exporter {
             : $conferenceDao->getConferences()->toArray();
         foreach ($conferences as $conference) {
             $this->log('Processing conference ' . $conference->getTitle($locale));
+            $tracks = $trackDao->getConferenceTracks($conference->getId())->toAssociativeArray('id');
             foreach ($schedConfDao->getSchedConfsByConferenceId($conference->getId())->toArray() as $schedConf) {
                 $this->log('Processing scheduled conference ' . $schedConf->getTitle($locale));
-                $tracks = $trackDao->getSchedConfTracks($schedConf->getId())->toAssociativeArray('id');
                 foreach ($publishedPaperDao->getPublishedPapersBySchedConfId($schedConf->getId())->toArray() as $paper) {
                     $this->log('Processing paper ID ' . $paper->getPaperId());
                     $trackId = $this->uniqueTrackIds[$paper->getTrackId()];
