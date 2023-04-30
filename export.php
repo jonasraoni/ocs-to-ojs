@@ -1,14 +1,35 @@
 <?php
+/**
+ * @file export.php
+ *
+ * Copyright (c) 2014-2023 Simon Fraser University
+ * Copyright (c) 2003-2023 John Willinsky
+ * Distributed under the GNU GPL v3. For full terms see the file LICENSE.
+ *
+ * @class Exporter
+ *
+ * @brief Exports OCS data to be used by the import script
+ */
 
 class Exporter {
+    /** Path where the script is running */
     private $runningPath;
+    /** Path for the OCS installation */
     private $ocsPath;
+    /** Path where the deliverables are going to be placed */
     private $outputPath;
+    /** Force flag */
     private $force = false;
+    /** List of conferences to export (empty = all) */
     private $conferences = [];
+    /** Target OJS installation */
     private $target;
+    /** Merged list of tracks by conference */
     private $uniqueTrackIds = [];
 
+    /**
+     * Feeds the script with command line arguments
+     */
     public static function run($argv)
     {
         $options = getopt('i:o:t:f');
@@ -20,6 +41,9 @@ class Exporter {
         new static($options['i'], $options['o'], strtolower($options['t']), $conferences, isset($options['f']));
     }
 
+    /**
+     * Initializes the process
+     */
     private function __construct($ocsPath, $outputPath, $target, $conferences, $force)
     {
         $exception = $defaultException = new Exception('An unexpected error has happened');
@@ -59,6 +83,9 @@ class Exporter {
         echo chr(7);
     }
 
+    /**
+     * Creates the output path
+     */
     private function createOutputPath()
     {
         $currentDirectory = getcwd();
@@ -79,28 +106,34 @@ class Exporter {
         chdir($currentDirectory);
     }
 
+    /**
+     * Initializes the OCS installation (we're going to use its internals to retrieve data)
+     */
     private function bootOcs()
     {
         if (!is_file($this->ocsPath . "/config.inc.php")) {
             throw new DomainException("The path \"{$this->ocsPath}\" doesn't seem to be a valid OCS installation, the config.inc.php file wasn't found.");
         }
 
-        $this->log('Booting OCS');
-        define('INDEX_FILE_LOCATION', "{$this->ocsPath}/index.php");
-        chdir(dirname(INDEX_FILE_LOCATION));
-        require_once 'lib/pkp/includes/bootstrap.inc.php';
-        Application::getRequest();
+        require_once "{$this->ocsPath}/tools/bootstrap.inc.php";
+        new CommandLineTool();
         // Attempt to use UTF-8
         (new DAO())->update("SET NAMES 'utf8'", false, true, false);
         (new DAO())->update("SET client_encoding = 'UTF8'", false, true, false);
         $this->log('Booting complete');
     }
 
+    /**
+     * Logs messages
+     */
     private static function log($message)
     {
         echo "{$message}\n";
     }
 
+    /**
+     * Retrieve the OCS version at the database
+     */
     private function getOcsVersion() {
         $version = $this->readAll(
             "SELECT v.major, v.minor, v.revision, v.build
@@ -113,6 +146,9 @@ class Exporter {
         return implode('.', (array) reset($version));
     }
 
+    /**
+     * Checks if the OCS version is supported by the script
+     */
     private function checkOcsVersion() {
         $this->log('Checking OCS version');
 
@@ -128,6 +164,9 @@ class Exporter {
         $this->log('OCS version checked');
     }
 
+    /**
+     * Exports a JSON file with the OCS metadata, which is needed at the import script
+     */
     private function exportMetadata()
     {
         $path = $this->outputPath . "/metadata.json";
@@ -143,6 +182,9 @@ class Exporter {
         $this->log('Metadata exported');
     }
 
+    /**
+     * Exports all papers by generating custom XML import files
+     */
     private function exportPapers()
     {
         $this->log('Exporting OCS papers');
@@ -175,9 +217,11 @@ class Exporter {
                     $trackId = $this->uniqueTrackIds[$paper->getTrackId()];
                     $track = isset($tracks[$trackId]) ? $tracks[$trackId] : $trackId = null;
                     require_once "generators/{$this->target}.php";
-                    $filename = "{$this->outputPath}/papers/{$conference->getId()}-{$schedConf->getId()}-{$trackId}-{$paper->getId()}.xml";
+                    $filename = "{$conference->getId()}-{$schedConf->getId()}-{$trackId}-{$paper->getId()}.xml";
+                    $path = "{$this->outputPath}/papers/{$filename}";
                     try {
-                        NativeXmlGenerator::renderPaper($filename, $conference, $schedConf, $track, $paper);
+                        NativeXmlGenerator::renderPaper($path, $conference, $schedConf, $track, $paper);
+                        $this->log("Paper XML generated as {$filename}");
                     } catch(Exception $e) {
                         $this->log("Failed to generate paper with {$e}");
                         continue;
@@ -189,6 +233,9 @@ class Exporter {
         $this->log('Papers exported');
     }
 
+    /**
+     * Retrieves a list of conferences
+     */
     private function getConferences()
     {
         $conferenceParams = substr(str_repeat('?,', count($this->conferences)), 0, -1);
@@ -218,6 +265,7 @@ class Exporter {
             $params
         );
 
+        // Merges the settings we can reuse with the entity data
         $conferences = array_values(
             array_reduce($conferences, function($conferences, $conference) {
                 $conferences[$conference->conference_id] = isset($conferences[$conference->conference_id])
@@ -253,6 +301,7 @@ class Exporter {
             throw new DomainException('The following conferences were not found:' . implode(', ', $notFound));
         }
 
+        // Adjust/feed/rename some data to fit better into the import script
         foreach ($conferences as &$conference) {
             $conference['primaryLocale'] = $conference['primary_locale'];
             if (isset($conference['title'])) {
@@ -280,6 +329,9 @@ class Exporter {
         return $conferences;
     }
 
+    /**
+     * Retrieves a list of scheduled conferences for a given conference path
+     */
     private function getScheduledConferences($conference)
     {
         $scheduledConferences = $this->readAll(
@@ -293,6 +345,7 @@ class Exporter {
             [$conference]
         );
 
+        // Merges the settings we can reuse with the entity data
         $scheduledConferences = array_values(
             array_reduce($scheduledConferences, function($scheduledConferences, $scheduledConference) {
                 $scheduledConferences[$scheduledConference->sched_conf_id] = isset($scheduledConferences[$scheduledConference->sched_conf_id])
@@ -317,6 +370,7 @@ class Exporter {
             }, [])
         );
 
+        // Adjust 
         return array_map(function ($schedConf) {
             $schedConf['description'] = $schedConf['overview'] ?: $schedConf['introduction'];
             $schedConf['year'] = date('Y', strtotime($schedConf['endDate'] ? $schedConf['endDate'] : $schedConf['startDate']));
@@ -325,6 +379,9 @@ class Exporter {
         }, $scheduledConferences);
     }
 
+    /**
+     * Retrieves a list of tracks for a given conference path
+     */
     private function getTracks($conference)
     {
         $locale = $this->readAll(
@@ -347,6 +404,7 @@ class Exporter {
             [$conference]
         );
 
+        // Merges the settings we can reuse with the entity data
         $tracks = array_reduce($tracks, function($tracks, $track) {
             $tracks[$track->track_id] = isset($tracks[$track->track_id]) ? $tracks[$track->track_id] : ['id' => $track->track_id];
             if ($track->setting_name !== 'policy') {
@@ -360,6 +418,7 @@ class Exporter {
             return $tracks;
         }, []);
 
+        // Attempts to merge similar tracks by conference
         return array_values(
             array_reduce($tracks, function($tracks, $track) use ($locale) {
                 $title = isset($track['title'][$locale]) ? $track['title'][$locale] : reset($track['title']);
@@ -370,6 +429,9 @@ class Exporter {
         );
     }
 
+    /**
+     * Runs the query and retrieves a clean array with each row while ensuring data is composed of valid UTF-8 characters
+     */
     private function readAll($query, $params = [])
     {
         $dao = new DAO();
@@ -379,7 +441,9 @@ class Exporter {
             $row = (object) $rs->GetRowAssoc(0);
             foreach ($row as &$value) {
                 if ($value !== null) {
+                    // Attempt to convert to UTF-8 (just to detect bad encoded characters) and convert the problematic characters
                     if (($newValue = iconv('UTF-8', 'UTF-8//TRANSLIT', $value)) === false) {
+                        // Fallback to removing them
                         $newValue = iconv('UTF-8', 'UTF-8//IGNORE', $value);
                     }
                     $value = trim($newValue);
