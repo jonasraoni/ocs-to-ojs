@@ -13,11 +13,11 @@ class NativeXmlGenerator {
         $document = new DOMDocument('1.0', 'utf-8');
         
         $language = $paper->getLanguage();
-        $locale = strlen($language) === 5
+        $paperLocale = strlen($language) === 5
             ? $language
             : self::getLocaleFromIso3(strlen($language) === 2 ? self::getIso3FromIso1($language) : $language);
-        if (!$locale) {
-            $locale = AppLocale::getPrimaryLocale();
+        if (!$paperLocale) {
+            $paperLocale = AppLocale::getPrimaryLocale();
         }
         // Article
         $articleNode = $document->appendChild($document->createElementNS('http://pkp.sfu.ca', 'article'));
@@ -37,7 +37,7 @@ class NativeXmlGenerator {
         // Submission Files
         /** @var PaperFile */
         foreach ($paperFileDao->getPaperFilesByPaper($paper->getId()) as $paperFile) {
-            if ($submissionFileNode = self::generateSubmissionFile($document, $paper, $paperFile, $locale)) {
+            if ($submissionFileNode = self::generateSubmissionFile($document, $paper, $paperFile, $paperLocale)) {
                 $articleNode->appendChild($submissionFileNode);
             }
         }
@@ -46,7 +46,7 @@ class NativeXmlGenerator {
         /** @var DOMElement */
         $publicationNode = $articleNode->appendChild($document->createElement('publication'));
         self::setAttributes($publicationNode, [
-            'locale' => $locale,
+            'locale' => $paperLocale,
             'version' => '1',
             'status' => '3',
             'seq' => '1',
@@ -65,8 +65,8 @@ class NativeXmlGenerator {
         }
 
         // ID
-        $id = XMLCustomWriter::createChildWithText($document, $publicationNode, 'id', $paper->getId());
-        self::setAttributes($id, [
+        $idNode = XMLCustomWriter::createChildWithText($document, $publicationNode, 'id', $paper->getId());
+        self::setAttributes($idNode, [
             'type' => 'internal',
             'advice' => 'ignore'
         ]);
@@ -116,7 +116,7 @@ class NativeXmlGenerator {
         if (count($paper->getAuthors())) {
             $authorsNode = $publicationNode->appendChild($document->createElement('authors'));
             foreach ($paper->getAuthors() as $i => $author) {
-                $authorNode = self::generateAuthor($document, $author, $i + 1, $locale);
+                $authorNode = self::generateAuthor($document, $author, $i + 1, $paperLocale);
                 $authorsNode->appendChild($authorNode);
             }
         }
@@ -147,7 +147,7 @@ class NativeXmlGenerator {
                 continue;
             }
             $articleGalleyNode = $publicationNode->appendChild($document->createElement('supplementary_file'));
-            self::setAttributes($articleGalleyNode, ['locale' => $locale, 'approved' => 'true']);
+            self::setAttributes($articleGalleyNode, ['locale' => $paperLocale, 'approved' => 'true']);
             $idNode = XMLCustomWriter::createChildWithText($document, $articleGalleyNode, 'id', $suppFile->getId(), false);
             self::setAttributes($idNode, ['type' => 'internal', 'advice' => 'ignore']);
             self::createLocalizedNodes($document, $articleGalleyNode, 'name', $suppFile->getTitle());
@@ -172,7 +172,7 @@ class NativeXmlGenerator {
      * @param DOMDocument $document
      * @param Author $author
      */
-    static function generateAuthor($document, $author, $seq, $locale) {
+    static function generateAuthor($document, $author, $seq, $paperLocale) {
         $authorNode = $document->createElement('author');
         
         if ($author->getPrimaryContact()) {
@@ -184,9 +184,9 @@ class NativeXmlGenerator {
             'id' => $author->getId()
         ]);
 
-        self::createLocalizedNodes($document, $authorNode, 'givenname', [$locale => $author->getFirstName() . ($author->getMiddleName() ? ' ' . $author->getMiddleName() : '')]);
-        self::createLocalizedNodes($document, $authorNode, 'familyname', [$locale => $author->getLastName()]);
-        self::createLocalizedNodes($document, $authorNode, 'affiliation', [$locale => $author->getAffiliation()]);
+        self::createLocalizedNodes($document, $authorNode, 'givenname', [$paperLocale => $author->getFirstName() . ($author->getMiddleName() ? ' ' . $author->getMiddleName() : '')]);
+        self::createLocalizedNodes($document, $authorNode, 'familyname', [$paperLocale => $author->getLastName()]);
+        self::createLocalizedNodes($document, $authorNode, 'affiliation', [$paperLocale => $author->getAffiliation()]);
 
         XMLCustomWriter::createChildWithText($document, $authorNode, 'country', $author->getCountry(), false);
         XMLCustomWriter::createChildWithText($document, $authorNode, 'email', $author->getEmail(), false);
@@ -202,7 +202,7 @@ class NativeXmlGenerator {
      * @param PublishedPaper $paper
      * @param PaperFile $paperFile
      */
-    static function generateSubmissionFile($document, $paper, $paperFile, $locale) {
+    static function generateSubmissionFile($document, $paper, $paperFile, $paperLocale) {
         static $genreMap;
 
         if (!$genreMap) {
@@ -269,7 +269,7 @@ class NativeXmlGenerator {
             'filetype' => $paperFile->getFileType()
         ]);
 
-        self::createLocalizedNodes($document, $revisionNode, 'name', [$locale => $paperFile->getOriginalFileName()]);
+        self::createLocalizedNodes($document, $revisionNode, 'name', [$paperLocale => $paperFile->getOriginalFileName()]);
 
         $embedNode = $revisionNode->appendChild($document->createElement('embed', base64_encode($paperContent)));
         $embedNode->setAttribute('encoding', 'base64');
@@ -313,7 +313,7 @@ class NativeXmlGenerator {
                     'filetype' => $dependentPaperFile->getFileType()
                 ]);
         
-                self::createLocalizedNodes($document, $revisionNode, 'name', [$locale => $dependentPaperFile->getOriginalFileName()]);
+                self::createLocalizedNodes($document, $revisionNode, 'name', [$paperLocale => $dependentPaperFile->getOriginalFileName()]);
 
                 $fileRefNode = $revisionNode->appendChild($document->createElement('submission_file_ref'));
                 $fileRefNode->setAttribute('id', $paperFile->getFileId());
