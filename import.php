@@ -528,6 +528,13 @@ class Importer {
      */
     private function importPapers()
     {
+        $this->log('Checking OJS configuration');
+        if (!Config::getVar('debug', 'display_errors') && $this->forceLevel < 6) {
+            throw new DomainException('In order to get better error messages, please setup the setting [debug].display_errors at the config.inc.php file of OJS with "On"');
+        }
+        $this->log('OJS configuration checked');
+
+
         $this->log('Importing papers into OJS');
 
         // Successfully processed papers will be placed here
@@ -612,15 +619,15 @@ class Importer {
                     $command = "{$this->phpPath} -d memory_limit=-1 " . escapeshellarg("{$this->ojsPath}/tools/importExport.php") . ' NativeImportExportPlugin import ' . escapeshellarg($path) . " {$journal->urlPath} {$this->username}";
                     // Retrieve the last created publication ID, will be used to check if a new one was created (which indicates that the paper was at least partially imported)
                     $lastCount = $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count;
-                    $output = shell_exec($command);
-                    $this->log("Output from OJS:\n{$output}");
-                    if ($output === null || strpos($output, 'Fatal error') !== false || $lastCount === (int) $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count) {
-                        throw new DomainException('Failure while running the import command from the Native Import Export Plugin, you may retry with the setting [debug].display_errors defined as "On" on the config.inc.php');
+                    if ($output = shell_exec($command)) {
+                        $this->log("Output from OJS:\n{$output}");
                     }
-                    $this->log("Paper imported successfully. " (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the processed folder');
+                    if (strpos($output, 'Fatal error') !== false || $lastCount === (int) $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count) {
+                        throw new DomainException('Failure while running the import command from the Native Import Export Plugin');
+                    }
+                    $this->log("Paper imported successfully " . (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' paper XML to the processed folder');
                     ++$this->importedPapers;
                     unlink($path);
-                    $this->log('');
                 } catch (DomainException $e) {
                     $this->log("Failed to process paper {$paper->getFilename()}: " . $e->getMessage());
                     // If the "command" part was reached, then store a copy of the XML to debug what happened

@@ -70,6 +70,7 @@ You can start by running `php ${OCS_TO_OJS_PATH}/import.php`, it will display a 
   - **`\>= 3`:** The script will create missing journals.
   - **`\>= 4`:** The script will create missing issues.
   - **`\>= 5`:** The script will create missing sections.
+  - **`\>= 6`:** The script will not check if the OJS setting `[debug].display_errors` is enabled.
 
 Still about the `-f LEVEL`, when creating journals/issues/sections, the script will use the metadata from `${DATA_PATH}/metadata.json` to populate the structures. You're free to review/update anything on this file, as long as you keep the IDs intact. There are basically three options to solve conflicts:
 - Increase the "force level": Will create the missing data for you.
@@ -82,6 +83,8 @@ Still about the `-f LEVEL`, when creating journals/issues/sections, the script w
 > The papers which were imported successfully will be moved to the folder `${DATA_PATH}/processed-papers`.
 
 Setup all arguments and execute the `${OCS_TO_OJS_PATH}/import.php` script, at the end you should see the message `Import finished with success`.
+
+Check if there are not errors/warnings at the script output, perhaps some manual fixes will be needed.
 
 Now you can delete the `${DATA_PATH}` and revert the `[debug].display_errors` back to `Off`.
 
