@@ -251,6 +251,13 @@ class NativeXmlGenerator {
 		$paperFileManager = new PaperFileManager($paper->getPaperId());
 		$paperFileManager->readFile($paperFile->getFileId());
 		$revisionNode = $submissionFileNode->appendChild($document->createElement('revision'));
+		$paperContent = $paperFileManager->readFile($paperFile->getFileId());
+		$contentSize = strlen($paperContent);
+
+		if ((int) $paperFile->getFileSize() !== $contentSize) {
+			echo "File ID {$paperFile->getFileId()} has a size mismatch, expected {$paperFile->getFileSize()}, but read {$contentSize}\n";
+		}
+
 		self::setAttributes($revisionNode, [
 			'number' => $paperFile->getRevision(),
 			'genre' => $genreMap['SUBMISSION'],
@@ -258,13 +265,13 @@ class NativeXmlGenerator {
 			'viewable' => $paperFile->getViewable() ? 'true' : 'false',
 			'date_uploaded' => self::formatDate($paperFile->getDateUploaded()),
 			'date_modified' => self::formatDate($paperFile->getDateModified()),
-			'filesize' => $paperFile->getFileSize(),
+			'filesize' => $contentSize,
 			'filetype' => $paperFile->getFileType()
 		]);
 
 		self::createLocalizedNodes($document, $revisionNode, 'name', [$locale => $paperFile->getOriginalFileName()]);
 
-		$embedNode = $revisionNode->appendChild($document->createElement('embed', base64_encode($paperFileManager->readFile($paperFile->getFileId()))));
+		$embedNode = $revisionNode->appendChild($document->createElement('embed', base64_encode($paperContent)));
 		$embedNode->setAttribute('encoding', 'base64');
 
 		if ($ownerGalley instanceof SuppFile) {
