@@ -12,6 +12,10 @@
  */
 
 class Exporter {
+    /** Count of exported papers */
+    private $exportedPapers = 0;
+    /** Count of failed papers */
+    private $failedPapers = 0;
     /** Path where the script is running */
     private $runningPath;
     /** Path for the OCS installation */
@@ -78,6 +82,8 @@ class Exporter {
                 $this->log($exception->getMessage());
             } else {
                 $this->log($exception ? "Export failed with {$exception}" : 'Export finished with success');
+                $this->log("Exported papers: {$this->exportedPapers}");
+                $this->log("Failed papers: {$this->failedPapers}");
             }
         }
         echo chr(7);
@@ -222,8 +228,10 @@ class Exporter {
                     try {
                         NativeXmlGenerator::renderPaper($path, $conference, $schedConf, $track, $paper);
                         $this->log("Paper XML generated as {$filename}");
+                        ++$this->exportedPapers;
                     } catch(Exception $e) {
                         $this->log("Failed to generate paper with {$e}");
+                        ++$this->failedPapers;
                         continue;
                     }
                 }
@@ -421,6 +429,8 @@ class Exporter {
         // Attempts to merge similar tracks by conference
         return array_values(
             array_reduce($tracks, function($tracks, $track) use ($locale) {
+                isset($track['title']) || $track['title'] = [$locale => 'General'];
+                isset($track['abbrev']) || $track['abbrev'] = [$locale => 'GEN'];
                 $title = isset($track['title'][$locale]) ? $track['title'][$locale] : reset($track['title']);
                 $tracks[$title] = isset($tracks[$title]) ? $tracks[$title] : $track;
                 $this->uniqueTrackIds[$track['id']] = $tracks[$title]['id'];
