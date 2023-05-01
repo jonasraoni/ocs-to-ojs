@@ -31,6 +31,8 @@ We'll be using these variables across the instructions:
 
 > This step isn't supposed to cause side-effects to your OCS installation, anyway, prepare a backup for safety reasons.
 
+⚠ This script will make use of the OCS code, so ensure you're running it using a PHP client compatible with your OCS.
+
 This process will extract the papers and some extra metadata from the OCS installation into the `${DATA_PATH}` folder. The generated files will be used as input for the [import](#3-import) process.
 
 At the end of the process you should have these files:
@@ -50,6 +52,8 @@ Setup all arguments and execute the `${OCS_TO_OJS_PATH}/export.php` script, at t
 ## 3. Import
 
 > This process can leave your installation in a broken state in case something goes wrong, backup your files and database before proceeding. If you're able to prepare a sandbox installation, that would be the best place to test the import.
+
+⚠ This script will make use of the OJS code, so ensure you're running it using a PHP client compatible with your OJS.
 
 The process depends on the `Native XML`/`Native Import Export Plugin`, which comes with OJS by default. When the plugin fails to import an article, errors might be silenced by OJS. Ensure you've enabled the setting `[debug].display_errors` at your `${OJS_PATH}/config.inc.php` before running the import script, this will give you better clues to understand what happened.
 
