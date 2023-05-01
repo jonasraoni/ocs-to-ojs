@@ -40,7 +40,7 @@ At the end of the process you should have these files:
 You can start by running `php ${OCS_TO_OJS_PATH}/export.php`, it will display a short usage description. Below is a complete reference for the required and optional arguments:
 - **`-i ${OCS_PATH}`:** The path to the OCS installation.
 - **`-o ${DATA_PATH}`:** The path where the script will store the deliverables.
-- **`-t TARGET_OJS_VERSION`:** Indicates the target OJS version. The script generates custom data based on the OJS version, at this moment you can specify one of `stable-3_1_2`, `stable-3_2_1` and `stable-3_3_0`.
+- **`-t TARGET_OJS_VERSION`:** Indicates the target OJS version. The script generates custom data based on the OJS version, at this moment you can specify one of `stable-3_2_1`, `stable-3_3_0` and `stable-3_4_0`.
 - **`-f` (optional):** Force flag. The script will fail if your OCS isn't at the version `2.3.6.0` or if the `${DATA_PATH}` folder already exists, running with `-f` will ignore both warnings.
 - **`conferencePath1 conferencePath2 conferencePathN` (optional):** The script will export **all** conferences by default, unless you specify at the end of the command the conference paths that you need.
 

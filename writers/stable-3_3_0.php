@@ -14,7 +14,8 @@
 
 require_once __DIR__ . '/stable-3_2_1.php';
 
-class Stable330Writer extends Stable321Writer {
+class Stable330Writer extends Stable321Writer
+{
     /**
      * Retrieves the tag name to be used for the galley
      * @param PaperGalley|SuppFile $galley
@@ -31,7 +32,9 @@ class Stable330Writer extends Stable321Writer {
      */
     protected function processArticle()
     {
-        parent::processArticle()->setAttribute('locale', $this->locale);
+        $articleNode = parent::processArticle();
+        $articleNode->setAttribute('locale', $this->locale);
+        return $articleNode;
     }
 
     /**
