@@ -12,7 +12,8 @@
  * @brief Base class to generate XML from an OCS paper
  */
 
-abstract class BaseXmlWriter {
+abstract class BaseXmlWriter
+{
     /** @var Conference */
     protected $conference;
     /** @var SchedConf */

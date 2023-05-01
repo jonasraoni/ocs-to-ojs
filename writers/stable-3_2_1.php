@@ -14,7 +14,8 @@
 
 require_once __DIR__ . '/BaseXmlWriter.php';
 
-class Stable321Writer extends BaseXmlWriter {
+class Stable321Writer extends BaseXmlWriter
+{
     /**
      * Generates the paper XML
      * @return string

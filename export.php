@@ -12,7 +12,8 @@
  * @brief Exports OCS data to be used by the import script
  */
 
-class Exporter {
+class Exporter
+{
     /** Count of exported papers */
     private $exportedPapers = 0;
     /** Count of failed papers */
