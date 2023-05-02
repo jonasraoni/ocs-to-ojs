@@ -1,12 +1,12 @@
 # OCS (Open Conference Systems) to OJS (Open Journal Systems) Migration Tool
 
-This migration tool is based on converting the OCS 2.3.6 native XML output to the OJS format.
+This migration tool is based on exporting papers from an OCS 2.3.6 installation into OJS through the generation of specialized XML files compatible with its `Native XML` plugin.
 
-It assumes that you have an older server, probably running PHP 5.6, hosting OCS, and a new one, running PHP +7.x, hosting the OJS installation.
+It assumes that you have an older server, probably running PHP 5.6, hosting the OCS installation, and a new one, running PHP +7.x, hosting the OJS installation.
 
 For this reason the process was broken in two parts, [export](#2-export) (runs on the OCS server) and [import](#3-import) (runs on the OJS server).
 
-**TL;DR:** Run the `export.php` on the OCS server, move the generated data to somewhere accessible for the OJS server, run the `import.php` on the OJS server.
+**TL;DR:** Run the `export.php` on the OCS server > Move the generated data to somewhere accessible by the OJS server > Adjust anything you want > Run the `import.php` on the OJS server.
 
 
 ## Variables
@@ -59,7 +59,11 @@ The process depends on the `Native XML`/`Native Import Export Plugin`, which com
 
 > The OJS installation doesn't need to be clean/empty, data from OCS might be inserted as additional content.
 
-The script first attempts to match conferences, scheduled conferences and tracks to existing resources at the OJS installation. In case something cannot be found/mapped, it will stop and ask you whether you want to map them manually, remove/ignore the map (e.g. if you ignore a conference, all of its related papers will be ignored as well) or let the script create the missing data for you (see the `-f` argument below). Once the mapping is done, the script will pass through every file at the `${DATA_PATH}/papers` and import them (if you want a specific paper to be skipped, you can remove it from the folder).
+The script first attempts to match conferences, scheduled conferences and tracks to existing resources at the OJS installation. In case something cannot be found/mapped, it will stop and ask you whether you want to map them manually, remove/ignore the mapping step (e.g. if you decide to remove a conference, all of its related papers will not be imported as well) or let the script create the missing data for you (see the `-f` argument below). Once the mapping is done, the script will pass through every file at the `${DATA_PATH}/papers` and import them.
+
+If you want to skip specific papers from the import, you can remove their respective files from the import folder (you can identify it by ID, the format was explained at the export step).
+
+If you want to ignore a specific conference, scheduled conference or track, remove it from the file `metadata.json`, the import will process only properly mapped data.
 
 You can start by running `php ${OCS_TO_OJS_PATH}/import.php`, it will display a short usage description. Below is a complete reference for the required and optional arguments:
 - **`-i ${DATA_PATH}`:** The path where the export script left the OCS data.
