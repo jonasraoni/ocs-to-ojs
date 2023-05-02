@@ -1,4 +1,4 @@
-# OCS (Open Conference Systems) to OJS (Open Journal Systems) Migration
+# OCS (Open Conference Systems) to OJS (Open Journal Systems) Migration Tool
 
 This migration tool is based on converting the OCS 2.3.6 native XML output to the OJS format.
 
