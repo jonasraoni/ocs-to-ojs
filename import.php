@@ -44,7 +44,7 @@ class Importer
     {
         $options = getopt('i:o:u:a:p:f:');
         if (empty($options['i']) || empty($options['o']) || empty($options['u']) || empty($options['a'])) {
-            exit("Usage:\nimport.php -i INPUT_PATH -o PATH_TO_OJS_INSTALLATION -u IMPORT_USERNAME -a ADMIN_USERNAME [-p PHP_EXECUTABLE_PATH] [-f LEVEL]");
+            exit("Usage:\nimport.php -i INPUT_PATH -o PATH_TO_OJS_INSTALLATION -u IMPORT_USERNAME -a ADMIN_USERNAME [-p PHP_EXECUTABLE_PATH] [-f LEVEL]\n\a");
         }
 
         new static($options['o'], $options['i'], $options['u'], $options['a'], $options['p'] ?? 'php', $options['f'] ?? 0);
@@ -183,11 +183,14 @@ class Importer
         $installedLocales = (array) $installedLocales;
 
         if (count($missingLocales = array_diff($uniqueLocales, $installedLocales)) && $this->forceLevel < 2) {
-            throw new DomainException('The conferences which are going to be imported require the following locales to be installed: ' . implode(', ', $missingLocales));
+            throw new DomainException(
+                'The conferences which are going to be imported require the following locales to be installed: ' . implode(', ', $missingLocales)
+                . "\nYou might ignore this warning by re-running with the argument \"-f 2\""
+            );
         }
         $this->log("Required locales are installed");
 
-        $hasSettingType = ['sections' => true, 'issues' => true];
+        $hasSettingType = ['section_settings' => true, 'issue_settings' => true];
         foreach ($hasSettingType as $table => &$hasField) {
             try {
                 $this->readAll("SELECT setting_type FROM {$table} WHERE 1 = 0");
@@ -280,7 +283,7 @@ class Importer
             throw new DomainException(
                 "The following journals paths were not found:\n" . implode("\n", $missingJournals) . "\n\nYou have these options:"
                 . "\n- Map the non-existent values to existing journal paths at the file \"{$this->inputPath}/metadata.json\", by updating the conference.path to an existing journal path."
-                . "\n- Let this tool to create the missing journals by re-running with the argument \"-f 2\", you might review/modify the data which will be used to create the journal at the metadata.json file."
+                . "\n- Let this tool create the missing journals by re-running with the argument \"-f 3\", you might review/modify the data which will be used to create the journal at the metadata.json file."
                 . "\n- Remove the journal and its subdata from the metadata.json, this will cause its related papers to be skipped."
             );
         } else {
@@ -334,7 +337,7 @@ class Importer
                                 'setting_name' => $name,
                                 'setting_value' => $value
                             ];
-                            if ($hasSettingType['issues']) {
+                            if ($hasSettingType['issue_settings']) {
                                 $data += ['setting_type' => 'string'];
                             }
                             $this->execute(
@@ -355,7 +358,7 @@ class Importer
             }
             $message .= "\n\nYou have these options:"
                 . "\n- Map the non-existent values to existing issues at the file \"{$this->inputPath}/metadata.json\", by updating the issue.volume, issue.number and issue.year to the values of an existing issue of the given journal."
-                . "\n- Let this tool create the missing issues by re-running with the argument \"-f 3\", you might review/modify the data which will be used to create the issues at the metadata.json file."
+                . "\n- Let this tool create the missing issues by re-running with the argument \"-f 4\", you might review/modify the data which will be used to create the issues at the metadata.json file."
                 . "\n- Remove the issue from the metadata.json, this will cause its related papers to be skipped.";
             throw new DomainException($message);
         } else {
@@ -417,7 +420,7 @@ class Importer
                                 'setting_name' => $name,
                                 'setting_value' => $value
                             ];
-                            if ($hasSettingType['sections']) {
+                            if ($hasSettingType['section_settings']) {
                                 $data += ['setting_type' => 'string'];
                             }
                             $this->execute(
@@ -438,7 +441,7 @@ class Importer
             }
             $message .= "\n\nYou have these options:"
                 . "\n- Map the non-existent values to existing sections at the file \"{$this->inputPath}/metadata.json\", by updating the section.title to an existing section of the given journal."
-                . "\n- Let this tool create the missing sections by re-running with the argument \"-f 4\", you might review/modify the data which will be used to create the sections at the metadata.json file."
+                . "\n- Let this tool create the missing sections by re-running with the argument \"-f 5\", you might review/modify the data which will be used to create the sections at the metadata.json file."
                 . "\n- Remove the section from the metadata.json, this will cause its related papers to be skipped.";
             throw new DomainException($message);
         } else {
