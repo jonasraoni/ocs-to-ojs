@@ -32,25 +32,33 @@ class Exporter
     private $target;
     /** Merged list of tracks by conference */
     private $uniqueTrackIds = [];
+    /** Whether supplementary files must be exported as public galleys */
+    private $supplementaryFileAsGalley = false;
 
     /**
      * Feeds the script with command line arguments
      */
     public static function run($argv)
     {
-        $options = getopt('i:o:t:f');
+        $options = getopt('i:o:t:fs');
         if (empty($options['i']) || empty($options['o']) || empty($options['t'])) {
-            exit("Usage:\nexport.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [conference_path1 [conferenceN...]]\n\a");
+            exit(
+                "Usage:\n"
+                . "export.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [-s] [conference_path1 [conferenceN...]]\n"
+                . "-t\tPossible values are: stable-3_2_1, stable-3_3_3 and stable-3_4_0\n"
+                . "-s\tWhen specified will turn supplementary files into public galleys\n"
+                . "-f\tWhen specified will ignore the warnings\n\a"
+            );
         }
 
         $conferences = array_filter(array_slice($argv, count($options) + count(array_filter($options, 'is_string')) + 1), 'strlen');
-        new static($options['i'], $options['o'], strtolower($options['t']), $conferences, isset($options['f']));
+        new static($options['i'], $options['o'], strtolower($options['t']), $conferences, isset($options['s']), isset($options['f']));
     }
 
     /**
      * Initializes the process
      */
-    private function __construct($ocsPath, $outputPath, $target, $conferences, $force)
+    private function __construct($ocsPath, $outputPath, $target, $conferences, $supplementaryFileAsGalley, $force)
     {
         $exception = $defaultException = new Exception('An unexpected error has happened');
         try {
@@ -71,6 +79,7 @@ class Exporter
             $this->outputPath = $outputPath;
             $this->force = $force;
             $this->conferences = $conferences;
+            $this->supplementaryFileAsGalley = $supplementaryFileAsGalley;
             $this->bootOcs();
             $this->checkOcsVersion();
             $this->createOutputPath();
@@ -234,7 +243,7 @@ class Exporter
                         /** @var class-string<BaseXmlWriter> */
                         $className = ucwords(preg_replace('/[^a-z0-9]/', '', $this->target)) . 'Writer';
                         /** @var BaseXmlWriter */
-                        $writer = new $className($conference, $schedConf, $track, $paper);
+                        $writer = new $className($conference, $schedConf, $track, $paper, $this->supplementaryFileAsGalley);
                         if (!file_put_contents($path, $writer->process())) {
                             throw new Exception("Failed to write paper to {$path}");
                         }

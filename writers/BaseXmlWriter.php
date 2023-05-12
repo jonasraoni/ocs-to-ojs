@@ -26,6 +26,8 @@ abstract class BaseXmlWriter
     protected $locale;
     /** @var DOMDocument */
     protected $document;
+    /** Whether supplementary files must be exported as public galleys */
+    protected $supplementaryFileAsGalley = false;
 
     /**
      * @param Conference $conference
@@ -33,12 +35,13 @@ abstract class BaseXmlWriter
      * @param Track $track
      * @param PublishedPaper $paper
      */
-    public function __construct($conference, $schedConf, $track, $paper)
+    public function __construct($conference, $schedConf, $track, $paper, $supplementaryFileAsGalley)
     {
         $this->conference = $conference;
         $this->schedConf = $schedConf;
         $this->track = $track;
         $this->paper = $paper;
+        $this->supplementaryFileAsGalley = $supplementaryFileAsGalley;
 
         $language = $paper->getLanguage();
         $locale = strlen($language) === 5

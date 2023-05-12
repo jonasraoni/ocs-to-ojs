@@ -224,6 +224,9 @@ class Stable321Writer extends BaseXmlWriter
                 $locale = $galley->getLocale() ?: $this->locale;
                 $names = [$locale => $galley->getLabel() ?: strtoupper(pathinfo($paperFile->getFileName(), PATHINFO_EXTENSION))];
             } else {
+                if (!$this->supplementaryFileAsGalley) {
+                    continue;
+                }
                 $locale = $this->locale;
                 $names = $galley->getTitle();
                 if (!count($names)) {
@@ -244,7 +247,7 @@ class Stable321Writer extends BaseXmlWriter
     }
 
     /**
-     * Process the article_galley and supplementary_file
+     * Process the keywords
      * @param DOMElement $publicationNode
      * @param array $keywords
      * @param string $keywordsNodeName
