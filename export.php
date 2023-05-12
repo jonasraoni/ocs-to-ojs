@@ -364,7 +364,7 @@ class Exporter
             [$conference]
         );
 
-        $currentVolume = count($scheduledConferences);
+        $currentVolume = 0;
         // Merges the settings we can reuse with the entity data
         $scheduledConferences = array_values(
             array_reduce($scheduledConferences, function($scheduledConferences, $scheduledConference) use (&$currentVolume) {
@@ -373,7 +373,7 @@ class Exporter
                     : [
                         'id' => $scheduledConference->sched_conf_id,
                         'path' => $scheduledConference->path,
-                        'volume' => $currentVolume--,
+                        'volume' => ++$currentVolume,
                         'number' => 1,
                         'startDate' => $scheduledConference->start_date,
                         'endDate' =>  $scheduledConference->end_date
