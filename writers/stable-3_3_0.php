@@ -108,6 +108,10 @@ class Stable330Writer extends Stable321Writer
         if ((int) $paperFile->getFileSize() !== $contentSize) {
             echo "File ID {$paperFile->getFileId()} has a size mismatch, expected {$paperFile->getFileSize()}, but read {$contentSize}\n";
         }
+        if (!$contentSize) {
+            $contentSize = strlen($paperContent = 'Empty');
+            echo "File ID {$paperFile->getFileId()} is empty, it will be imported with the content \"{$paperContent}\" for the sake of data completeness\n";
+        }
         $fileNode = $submissionFileNode->appendChild($this->setAttributes(
             $this->document->createElement('file'),
             [
@@ -146,6 +150,10 @@ class Stable330Writer extends Stable321Writer
                 $contentSize = strlen($paperContent);
                 if ((int) $dependentPaperFile->getFileSize() !== $contentSize) {
                     echo "File ID {$dependentPaperFile->getFileId()} has a size mismatch, expected {$dependentPaperFile->getFileSize()}, but read {$contentSize}\n";
+                }
+                if (!$contentSize) {
+                    $contentSize = strlen($paperContent = 'Empty');
+                    echo "File ID {$dependentPaperFile->getFileId()} is empty, it will be imported with the content \"{$paperContent}\" for the sake of data completeness\n";
                 }
                 $fileNode = $submissionFileNode->appendChild($this->setAttributes(
                     $this->document->createElement('file'),

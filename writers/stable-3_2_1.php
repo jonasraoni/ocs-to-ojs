@@ -99,6 +99,10 @@ class Stable321Writer extends BaseXmlWriter
         if ((int) $paperFile->getFileSize() !== $contentSize) {
             echo "File ID {$paperFile->getFileId()} has a size mismatch, expected {$paperFile->getFileSize()}, but read {$contentSize}\n";
         }
+        if (!$contentSize) {
+            $contentSize = strlen($paperContent = 'Empty');
+            echo "File ID {$paperFile->getFileId()} is empty, it will be imported with the content \"{$paperContent}\" for the sake of data completeness\n";
+        }
 
         $this->setAttributes($revisionNode, [
             'number' => $paperFile->getRevision(),
@@ -138,8 +142,16 @@ class Stable321Writer extends BaseXmlWriter
             foreach (array_merge([$ownerGalley->getStyleFile()], $ownerGalley->getImageFiles()) as $dependentPaperFile) {
                 $submissionFileNode = $documentFragment->appendChild($this->document->createElement('submission_file'));
                 $this->setAttributes($submissionFileNode, ['stage' => 'dependent', 'id' => $dependentPaperFile->getFileId()]);
-                
-                $paperFileManager->readFile($dependentPaperFile->getFileId());
+
+                $paperContent = $paperFileManager->readFile($dependentPaperFile->getFileId());
+                $contentSize = strlen($paperContent);
+                if ((int) $dependentPaperFile->getFileSize() !== $contentSize) {
+                    echo "File ID {$dependentPaperFile->getFileId()} has a size mismatch, expected {$dependentPaperFile->getFileSize()}, but read {$contentSize}\n";
+                }
+                if (!$contentSize) {
+                    $contentSize = strlen($paperContent = 'Empty');
+                    echo "File ID {$dependentPaperFile->getFileId()} is empty, it will be imported with the content \"{$paperContent}\" for the sake of data completeness\n";
+                }
                 $revisionNode = $submissionFileNode->appendChild($this->document->createElement('revision'));
                 $this->setAttributes($revisionNode, [
                     'number' => $dependentPaperFile->getRevision(),
@@ -148,7 +160,7 @@ class Stable321Writer extends BaseXmlWriter
                     'viewable' => $dependentPaperFile->getViewable() ? 'true' : 'false',
                     'date_uploaded' => $this->formatDate($dependentPaperFile->getDateUploaded()),
                     'date_modified' => $this->formatDate($dependentPaperFile->getDateModified()),
-                    'filesize' => $dependentPaperFile->getFileSize(),
+                    'filesize' => $contentSize,
                     'filetype' => $dependentPaperFile->getFileType()
                 ]);
 
@@ -158,7 +170,7 @@ class Stable321Writer extends BaseXmlWriter
                 $fileRefNode->setAttribute('id', $paperFile->getFileId());
                 $fileRefNode->setAttribute('revision', $paperFile->getRevision());
 
-                $embedNode = $revisionNode->appendChild($this->document->createElement('embed', base64_encode($paperFileManager->readFile($dependentPaperFile->getFileId()))));
+                $embedNode = $revisionNode->appendChild($this->document->createElement('embed', base64_encode($paperContent)));
                 $embedNode->setAttribute('encoding', 'base64');
             }
         }
