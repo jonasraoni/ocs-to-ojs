@@ -128,8 +128,9 @@ class Exporter
         require_once "{$this->ocsPath}/tools/bootstrap.inc.php";
         new CommandLineTool();
         // Attempt to use UTF-8
-        (new DAO())->update("SET NAMES 'utf8'", false, true, false);
-        (new DAO())->update("SET client_encoding = 'UTF8'", false, true, false);
+        $dao = new DAO();
+        $dao->update("SET NAMES 'utf8'", false, true, false);
+        $dao->update("SET client_encoding = 'UTF8'", false, true, false);
         $this->log('Booting complete');
     }
 
@@ -390,8 +391,13 @@ class Exporter
 
         // Adjust 
         return array_map(function ($schedConf) {
-            $schedConf['description'] = $schedConf['overview'] ?: $schedConf['introduction'];
-            $schedConf['year'] = date('Y', strtotime($schedConf['endDate'] ? $schedConf['endDate'] : $schedConf['startDate']));
+            foreach (['overview', 'introduction'] as $field) {
+                if (!empty($schedConf[$field])) {
+                    $schedConf['description'] = $schedConf[$field];
+                    break;
+                }
+            }
+            $schedConf['year'] = date('Y', strtotime(empty($schedConf['endDate']) ? $schedConf['startDate'] : $schedConf['endDate']));
             unset($schedConf['overview'], $schedConf['introduction']);
             return $schedConf;
         }, $scheduledConferences);

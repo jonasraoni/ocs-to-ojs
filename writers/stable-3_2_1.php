@@ -331,7 +331,10 @@ class Stable321Writer extends BaseXmlWriter
 
         $this->processAuthors($publicationNode);
 
-        $publicationNode->appendChild($this->processGalleys());
+        $galleysFragment = $this->processGalleys();
+        if ($galleysFragment->hasChildNodes()) {
+            $publicationNode->appendChild($galleysFragment);
+        }
         $this->processIssue($publicationNode);
         return $publicationNode;
     }
@@ -360,8 +363,9 @@ class Stable321Writer extends BaseXmlWriter
         // Submission Files
         /** @var PaperFile */
         foreach ($paperFileDao->getPaperFilesByPaper($this->paper->getId()) as $paperFile) {
-            if ($submissionFileNode = $this->processSubmissionFile($paperFile)) {
-                $articleNode->appendChild($submissionFileNode);
+            $submissionFileFragment = $this->processSubmissionFile($paperFile);
+            if ($submissionFileFragment->hasChildNodes()) {
+                $articleNode->appendChild($submissionFileFragment);
             }
         }
 
