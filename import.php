@@ -347,6 +347,11 @@ class Importer
                             );
                         }
                     }
+                    $this->execute('UPDATE custom_issue_orders SET seq = seq + 1 WHERE journal_id = ?', [$journal->localId]);
+                    $this->execute(
+                        'INSERT INTO custom_issue_orders (issue_id, journal_id, seq) VALUES (?, ?, 1)',
+                        [$issueId, $journal->localId]
+                    );
                     $this->log("Issue ID {$issueId} created");
                 }
             }
@@ -359,7 +364,8 @@ class Importer
             $message .= "\n\nYou have these options:"
                 . "\n- Map the non-existent values to existing issues at the file \"{$this->inputPath}/metadata.json\", by updating the issue.volume, issue.number and issue.year to the values of an existing issue of the given journal."
                 . "\n- Let this tool create the missing issues by re-running with the argument \"-f 4\", you might review/modify the data which will be used to create the issues at the metadata.json file."
-                . "\n- Remove the issue from the metadata.json, this will cause its related papers to be skipped.";
+                . "\n- Remove the issue from the metadata.json, this will cause its related papers to be skipped."
+                . "\n\nIf you opt to create the issues, please review the issue ordering after the import. We'll insert the new issues on the top";
             throw new DomainException($message);
         } else {
             $this->log("Issues matched successfully");
