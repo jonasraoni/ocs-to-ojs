@@ -40,7 +40,7 @@ class Exporter
     {
         $options = getopt('i:o:t:f');
         if (empty($options['i']) || empty($options['o']) || empty($options['t'])) {
-            exit("Usage:\nexport.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [conference_path1 [conferenceN...]]");
+            exit("Usage:\nexport.php -i PATH_TO_OCS_INSTALLATION -o OUTPUT_PATH -t TARGET_OJS_VERSION [-f] [conference_path1 [conferenceN...]]\n\a");
         }
 
         $conferences = array_filter(array_slice($argv, count($options) + count(array_filter($options, 'is_string')) + 1), 'strlen');
@@ -280,7 +280,7 @@ class Exporter
                     'title'
                 )
             $filter
-            ORDER BY c.seq",
+            ORDER BY c.seq DESC",
             $params
         );
 
@@ -360,19 +360,20 @@ class Exporter
             LEFT JOIN sched_conf_settings scs
                 ON scs.sched_conf_id = sc.sched_conf_id
                 AND scs.setting_name IN ('title', 'overview', 'introduction')
-            ORDER BY sc.seq",
+            ORDER BY sc.seq DESC",
             [$conference]
         );
 
+        $currentVolume = count($scheduledConferences);
         // Merges the settings we can reuse with the entity data
         $scheduledConferences = array_values(
-            array_reduce($scheduledConferences, function($scheduledConferences, $scheduledConference) {
+            array_reduce($scheduledConferences, function($scheduledConferences, $scheduledConference) use (&$currentVolume) {
                 $scheduledConferences[$scheduledConference->sched_conf_id] = isset($scheduledConferences[$scheduledConference->sched_conf_id])
                     ? $scheduledConferences[$scheduledConference->sched_conf_id]
                     : [
                         'id' => $scheduledConference->sched_conf_id,
                         'path' => $scheduledConference->path,
-                        'volume' => $scheduledConference->seq,
+                        'volume' => $currentVolume--,
                         'number' => 1,
                         'startDate' => $scheduledConference->start_date,
                         'endDate' =>  $scheduledConference->end_date
@@ -389,7 +390,7 @@ class Exporter
             }, [])
         );
 
-        // Adjust 
+        // Adjust
         return array_map(function ($schedConf) {
             foreach (['overview', 'introduction'] as $field) {
                 if (!empty($schedConf[$field])) {
@@ -424,7 +425,7 @@ class Exporter
             LEFT JOIN track_settings ts
                 ON ts.track_id = t.track_id
                 AND ts.setting_name IN ('title', 'abbrev', 'policy')
-            ORDER BY sc.seq, t.seq",
+            ORDER BY sc.seq DESC, t.seq DESC",
             [$conference]
         );
 
