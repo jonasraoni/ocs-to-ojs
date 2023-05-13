@@ -24,6 +24,8 @@ abstract class BaseXmlWriter
     protected $paper;
     /** @var string */
     protected $locale;
+    /** @var string */
+    protected $originalLocale;
     /** @var DOMDocument */
     protected $document;
     /** Whether supplementary files must be exported as public galleys */
@@ -48,7 +50,8 @@ abstract class BaseXmlWriter
             ? $language
             : $this->getLocaleFromIso3(strlen($language) === 2 ? $this->getIso3FromIso1($language) : $language);
 
-        $this->locale = $locale ?: $conference->getPrimaryLocale();
+        $this->originalLocale = $locale ?: $conference->getPrimaryLocale();
+        $this->locale = $this->getTargetLocale($this->originalLocale);
         $this->document = new DOMDocument('1.0', 'utf-8');
     }
 
@@ -89,7 +92,7 @@ abstract class BaseXmlWriter
                 }
                 $node = $parentNode->appendChild($this->document->createElement($name));
                 $node->appendChild($this->document->createTextNode($value));
-                $node->setAttribute('locale', $locale);
+                $node->setAttribute('locale', $this->getTargetLocale($locale));
             }
         }
     }
@@ -532,5 +535,13 @@ abstract class BaseXmlWriter
                 'direction' => 'rtl',
             ],
         ];
+    }
+
+    /**
+     * Updates the given locale to match the one used by OJS (useful only for OJS 3.4+)
+     */
+    public static function getTargetLocale($locale)
+    {
+        return $locale;
     }
 }

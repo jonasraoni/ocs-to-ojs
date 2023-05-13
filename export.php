@@ -236,12 +236,10 @@ class Exporter
                     $this->log('Processing paper ID ' . $paper->getPaperId());
                     $trackId = $this->uniqueTrackIds[$paper->getTrackId()];
                     $track = isset($tracks[$trackId]) ? $tracks[$trackId] : $trackId = null;
-                    require_once "writers/{$this->target}.php";
                     $filename = "{$conference->getId()}-{$schedConf->getId()}-{$trackId}-{$paper->getId()}.xml";
                     $path = "{$this->outputPath}/papers/{$filename}";
                     try {
-                        /** @var class-string<BaseXmlWriter> */
-                        $className = ucwords(preg_replace('/[^a-z0-9]/', '', $this->target)) . 'Writer';
+                        $className = $this->getWriterClass();
                         /** @var BaseXmlWriter */
                         $writer = new $className($conference, $schedConf, $track, $paper, $this->supplementaryFileAsGalley);
                         if (!file_put_contents($path, $writer->process())) {
@@ -301,13 +299,14 @@ class Exporter
                     : [
                         'id' => $conference->conference_id,
                         'urlPath' => $conference->path,
-                        'primary_locale' => $conference->primary_locale,
+                        'primary_locale' => $this->getTargetLocale($conference->primary_locale),
                         'enabled' => $conference->enabled
                     ];
                 if ($conference->setting_name === 'title') {
                     $conference->setting_value = strip_tags($conference->setting_value);
                 }
                 if ($conference->locale) {
+                    $conference->locale = $this->getTargetLocale($conference->locale);
                     $conferences[$conference->conference_id][$conference->setting_name][$conference->locale] = $conference->setting_value;
                 } else {
                     $conferences[$conference->conference_id][$conference->setting_name] = $conference->setting_value;
@@ -338,7 +337,11 @@ class Exporter
             $nonEmptyLocaleList = null;
             foreach (['supportedLocales', 'supportedFormLocales'] as $field) {
                 if (isset($conference[$field])) {
-                    $conference[$field] = unserialize($conference[$field]);
+                    $locales = unserialize($conference[$field]);
+                    $conference[$field] = is_array($locales) ? $locales : [];
+                    foreach ($conference[$field] as &$locale) {
+                        $locale = $this->getTargetLocale($locale);
+                    }
                     $nonEmptyLocaleList || $nonEmptyLocaleList = $conference[$field];
                 }
             }
@@ -391,6 +394,7 @@ class Exporter
                     $scheduledConference->setting_value = strip_tags($scheduledConference->setting_value);
                 }
                 if ($scheduledConference->locale) {
+                    $scheduledConference->locale = $this->getTargetLocale($scheduledConference->locale);
                     $scheduledConferences[$scheduledConference->sched_conf_id][$scheduledConference->setting_name][$scheduledConference->locale] = $scheduledConference->setting_value;
                 } else {
                     $scheduledConferences[$scheduledConference->sched_conf_id][$scheduledConference->setting_name] = $scheduledConference->setting_value;
@@ -424,7 +428,7 @@ class Exporter
             WHERE c.path = ?",
             [$conference]
         );
-        $locale = array_pop($locale)->locale;
+        $locale = $this->getTargetLocale(array_pop($locale)->locale);
 
         $tracks = $this->readAll(
             "SELECT t.track_id, t.seq, ts.setting_name, ts.setting_value, ts.locale
@@ -445,6 +449,7 @@ class Exporter
                 $track->setting_value = strip_tags($track->setting_value);
             }
             if ($track->locale) {
+                $track->locale = $this->getTargetLocale($track->locale);
                 $tracks[$track->track_id][$track->setting_name][$track->locale] = $track->setting_value;
             } else {
                 $tracks[$track->track_id][$track->setting_name] = $track->setting_value;
@@ -490,6 +495,24 @@ class Exporter
         }
         $rs->Close();
         return $data;
+    }
+
+    /**
+     * Retrieves the class name of the specialized XML writer and loads the file
+     * @return class-string<BaseXmlWriter>
+     */
+    private function getWriterClass()
+    {
+        require_once "writers/{$this->target}.php";
+        return ucwords(preg_replace('/[^a-z0-9]/', '', $this->target)) . 'Writer';
+    }
+
+    /**
+     * Shortcut for the specialized getTargetLocale()
+     */
+    private function getTargetLocale($locale)
+    {
+        return call_user_func([$this->getWriterClass(), 'getTargetLocale'], $locale);
     }
 }
 

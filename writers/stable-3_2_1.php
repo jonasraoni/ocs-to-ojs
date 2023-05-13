@@ -136,6 +136,7 @@ class Stable321Writer extends BaseXmlWriter
                 $locale = strlen($language) === 5
                     ? $language
                     : $this->getLocaleFromIso3(strlen($language) === 2 ? $this->getIso3FromIso1($language) : $language);
+                $locale = $this->getTargetLocale($locale);
                 $submissionFileNode->appendChild($this->document->createElement('language', $locale));
             }
         } elseif ($ownerGalley instanceof PaperHTMLGalley) {
@@ -221,7 +222,7 @@ class Stable321Writer extends BaseXmlWriter
             }
 
             if ($galley instanceof PaperGalley) {
-                $locale = $galley->getLocale() ?: $this->locale;
+                $locale = $this->getTargetLocale($galley->getLocale()) ?: $this->locale;
                 $names = [$locale => $galley->getLabel() ?: strtoupper(pathinfo($paperFile->getFileName(), PATHINFO_EXTENSION))];
             } else {
                 if (!$this->supplementaryFileAsGalley) {
@@ -257,6 +258,7 @@ class Stable321Writer extends BaseXmlWriter
     protected function processKeywords($publicationNode, $keywords, $keywordsNodeName, $keywordNodeName)
     {
         foreach (is_array($keywords) ? $keywords : [] as $locale => $keyword) {
+            $locale = $this->getTargetLocale($locale);
             $keywords = array_filter(array_map('trim', preg_split('/[,;]/', $keyword)), 'strlen');
             if (count($keywords)) {
                 $keywordsNode = $publicationNode->appendChild($this->document->createElement($keywordsNodeName));
@@ -329,6 +331,7 @@ class Stable321Writer extends BaseXmlWriter
         $mergedCoverage = [];
         foreach ([$this->paper->getCoverageGeo(null), $this->paper->getCoverageChron(null), $this->paper->getCoverageSample(null)] as $coverage) {
             foreach (is_array($coverage) ? $coverage : [] as $locale => $value) {
+                $locale = $this->getTargetLocale($locale);
                 $mergedCoverage[$locale][] = $value;
             }
         }
