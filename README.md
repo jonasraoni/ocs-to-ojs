@@ -44,6 +44,7 @@ You can start by running `php ${OCS_TO_OJS_PATH}/export.php`, it will display a 
 - **`-o ${DATA_PATH}`:** The path where the script will store the deliverables.
 - **`-t TARGET_OJS_VERSION`:** Indicates the target OJS version. The script generates custom data based on the OJS version, at this moment you can specify one of `stable-3_2_1`, `stable-3_3_0` and `stable-3_4_0`.
 - **`-f` (optional):** Force flag. The script will fail if your OCS isn't at the version `2.3.6.0` or if the `${DATA_PATH}` folder already exists, running with `-f` will ignore both warnings.
+- **`-s` (optional):** If this flag is specified supplementary files will be imported as public galleys, otherwise they will be imported as private submission files.
 - **`conferencePath1 conferencePath2 conferencePathN` (optional):** The script will export **all** conferences by default, unless you specify at the end of the command the conference paths that you need.
 
 Setup all arguments and execute the `${OCS_TO_OJS_PATH}/export.php` script, at the end you should see the message `Export finished with success`. Proceed to the [import](#3-import) step.
