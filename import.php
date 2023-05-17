@@ -36,24 +36,26 @@ class Importer
     private $username;
     /** Admin user which will be used while creating the journals */
     private $adminUsername;
+    /** If specified, the shell commands to import the papers will not be executed, but stored in this file */
+    private $shellCommandFile;
 
     /**
      * Feeds the script with command line arguments
      */
     public static function run()
     {
-        $options = getopt('i:o:u:a:p:f:');
+        $options = getopt('i:o:u:a:p:f:e:');
         if (empty($options['i']) || empty($options['o']) || empty($options['u']) || empty($options['a'])) {
-            exit("Usage:\nimport.php -i INPUT_PATH -o PATH_TO_OJS_INSTALLATION -u IMPORT_USERNAME -a ADMIN_USERNAME [-p PHP_EXECUTABLE_PATH] [-f LEVEL]\n\a");
+            exit("Usage:\nimport.php -i INPUT_PATH -o PATH_TO_OJS_INSTALLATION -u IMPORT_USERNAME -a ADMIN_USERNAME [-p PHP_EXECUTABLE_PATH] [-f LEVEL] [-e]\n\a");
         }
 
-        new static($options['o'], $options['i'], $options['u'], $options['a'], $options['p'] ?? 'php', $options['f'] ?? 0);
+        new static($options['o'], $options['i'], $options['u'], $options['a'], $options['p'] ?? 'php', $options['f'] ?? 0, $options['e'] ?? null);
     }
 
     /**
      * Initializes the process
      */
-    private function __construct($ojsPath, $inputPath, $username, $adminUsername, $phpPath, $forceLevel)
+    private function __construct($ojsPath, $inputPath, $username, $adminUsername, $phpPath, $forceLevel, $shellCommandFile)
     {
         $exception = $defaultException = new Exception('An unexpected error has happened');
         try {
@@ -65,9 +67,19 @@ class Importer
             $this->adminUsername = $adminUsername;
             $this->phpPath = preg_replace('`(?<!^) `', '^ ', escapeshellcmd($phpPath));
             $this->forceLevel = $forceLevel;
+            $this->shellCommandFile = $shellCommandFile ? realpath(dirname($shellCommandFile)) . '/' . basename($shellCommandFile) : null;
             $this->bootOjs();
             $this->loadMetadata();
             $this->checkOjsVersion();
+            if (count($polyfilled = $this->createPolyfills()) && !$this->shellCommandFile) {
+                throw new DomainException(
+                    "The following functions were not found in you PHP installation (they were probably disabled due to security reasons):\n"
+                    . implode(', ', $polyfilled) . "\n"
+                    . "You have two options:\n"
+                    . "- Enable them, by updating the php.ini manually or asking your host provider/system administrator\n"
+                    . "- Re-run the tool with the flag \"-e import-commands.sh\", which will just create the metadata. The ready to import papers will be placed in the folder \"processing-papers\" and the tool will just write out to the specified file shell commands to import them"
+                );
+            }
             $this->importMetadata();
             $this->importPapers();
             $exception = null;
@@ -89,7 +101,7 @@ class Importer
                         "Do not forget to:\n"
                         . "- Disable the [debug].display_errors setting on OJS\n"
                         . "- Review the current issue for each imported journal\n"
-                        . "- In case you\'re importing into an existing journal, it's important to review the issues ordering\n"
+                        . "- In case you're importing into an existing journal, it's important to review the issues ordering\n"
                     );
                 }
             }
@@ -656,6 +668,17 @@ class Importer
                     }
                     // Builds the command to import the paper through the NativeImportExportPlugin
                     $command = "{$this->phpPath} -d memory_limit=-1 " . escapeshellarg("{$this->ojsPath}/tools/importExport.php") . ' NativeImportExportPlugin import ' . escapeshellarg(preg_replace(['/[a-z]:/i', '/\\\\/'], ['', '/'], $path)) . " {$journal->urlPath} {$this->username}";
+
+                    // Writes the command and skips to the next paper
+                    if ($this->shellCommandFile) {
+                        if (!file_put_contents($this->shellCommandFile, "{$command}\n", FILE_APPEND)) {
+                            throw new DomainException("Failed to write the shell command to \"{$this->shellCommandFile}\"");
+                        }
+                        $this->log("The command to generate the paper was generated successfully. The ready to process paper was left at \"{$path}\". " . (rename($paper, "{$processedFolder}/{$paper->getFilename()}") ? "Moved" : "Failed to move") . ' source paper XML to the processed folder.');
+                        ++$this->importedPapers;
+                        continue;
+                    }
+
                     // Retrieve the last created publication ID, will be used to check if a new one was created (which indicates that the paper was at least partially imported)
                     $lastCount = $this->readAll('SELECT MAX(publication_id) AS count FROM publications')[0]->count;
                     if ($output = shell_exec($command)) {
@@ -664,10 +687,10 @@ class Importer
 
                     import('classes.i18n.AppLocale');
                     AppLocale::requireComponents(LOCALE_COMPONENT_PKP_MANAGER);
-                    $errorMessages = ['Fatal error', __('plugins.importexport.common.validationErrors'), __('plugins.importexport.common.errorsOccured')];
+                    $errorMessages = ['Fatal error', __('plugins.importexport.common.validationErrors'), __('plugins.importexport.common.errorsOccured') ?: __('plugins.importexport.common.errorsOccurred')];
                     $hasErrorMessage = false;
                     foreach ($errorMessages as $errorMessage) {
-                        if ($hasErrorMessage = strpos($output, $errorMessage) !== false) {
+                        if ($hasErrorMessage = strpos((string) $output, $errorMessage) !== false) {
                             break;
                         }
                     }
@@ -762,6 +785,36 @@ class Importer
             $rs->Close();
         }
         return $data;
+    }
+
+    /**
+     * Polyfills possibly disabled functions
+     * @return [] The polyfilled functions
+     */
+    private function createPolyfills()
+    {
+        $polyfilled = [];
+        if (!function_exists('escapeshellcmd')) {
+            function escapeshellcmd($command) {
+                return $command;
+            }
+            $polyfilled[] = 'escapeshellcmd';
+        }
+
+        if (!function_exists('escapeshellarg')) {
+            function escapeshellarg($command) {
+                return $command;
+            }
+            $polyfilled[] = 'escapeshellarg';
+        }
+
+        if (!function_exists('shell_exec')) {
+            function shell_exec($command) {
+                return null;
+            }
+            $polyfilled[] = 'shell_exec';
+        }
+        return $polyfilled;
     }
 }
 

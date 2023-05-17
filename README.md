@@ -79,6 +79,7 @@ You can start by running `php ${OCS_TO_OJS_PATH}/import.php`, it will display a 
   - **`\>= 4`:** The script will create missing issues.
   - **`\>= 5`:** The script will create missing sections.
   - **`\>= 6`:** The script will not check if the OJS setting `[debug].display_errors` is enabled.
+- **`-e SHELL_COMMAND_OUTPUT_FILE` (optional):** If a path is specified to this command, it will output the shell commands needed to import the papers to the given path, instead of importing them right away (the transformed/ready paper files will be left in place, in order to the commands work). This is probably only useful if your PHP installation has blocked access to the `shell_exec()` function.
 
 Still about the `-f LEVEL`, when creating journals/issues/sections, the script will use the metadata from `${DATA_PATH}/metadata.json` to populate the structures. You're free to review/update anything on this file, as long as you keep the IDs intact. There are basically three options to solve conflicts:
 - Increase the "force level": Will create the missing data for you.
