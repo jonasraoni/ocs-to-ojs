@@ -45,12 +45,12 @@ class Stable330Writer extends Stable321Writer
     protected function processSubmissionFile($paperFile)
     {
         $documentFragment = $this->document->createDocumentFragment();
-        $genreMap = $this->getGenreMap();
+        $genreMap = $this->getGenreMap($this->originalLocale);
 
         /** @var PaperGalley|PaperHTMLGalley|SuppFile */
         $ownerGalley = null;
         foreach (array_merge($this->paper->getGalleys(), $this->paper->getSuppFiles()) as $object) {
-            if ($object->getPaperId() === $paperFile->getPaperId()) {
+            if ($object->getFileId() === $paperFile->getFileId()) {
                 $ownerGalley = $object;
                 break;
             }

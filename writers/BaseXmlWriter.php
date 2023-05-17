@@ -553,7 +553,7 @@ abstract class BaseXmlWriter
         static $genreMap = [];
 
         $locale = $locale ?: 'en_US';
-        if (!$genreMap[$locale]) {
+        if (!isset($genreMap[$locale])) {
             AppLocale::requireComponents([LOCALE_COMPONENT_OCS_AUTHOR], $locale);
             foreach ([
                 'author.submit.suppFile.researchInstrument' => '{[#GENRE_NAME_RESEARCHINSTRUMENT#]}',
