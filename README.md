@@ -1,6 +1,6 @@
 # OCS (Open Conference Systems) to OJS (Open Journal Systems) Migration Tool
 
-This migration tool is based on exporting papers from an OCS 2.3.6 installation into OJS through the generation of specialized XML files compatible with its `Native XML` plugin.
+This migration tool is based on exporting **published** papers from an OCS 2.3.6 installation into OJS through the generation of specialized XML files compatible with its `Native XML` plugin.
 
 It assumes that you have an older server, probably running PHP 5.6, hosting the OCS installation, and a new one, running PHP +7.x, hosting the OJS installation.
 
