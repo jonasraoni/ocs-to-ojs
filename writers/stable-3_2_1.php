@@ -392,35 +392,4 @@ class Stable321Writer extends BaseXmlWriter
 
         return $articleNode;
     }
-
-    /**
-     * Builds the genre map
-     */
-    protected function getGenreMap()
-    {
-        static $genreMap;
-
-        if (!$genreMap) {
-            AppLocale::requireComponents([LOCALE_COMPONENT_OCS_AUTHOR]);
-            foreach ([
-                'author.submit.suppFile.researchInstrument' => '{[#GENRE_NAME_RESEARCHINSTRUMENT#]}',
-                'author.submit.suppFile.researchMaterials' => '{[#GENRE_NAME_RESEARCHMATERIALS#]}',
-                'author.submit.suppFile.researchResults' => '{[#GENRE_NAME_RESEARCHRESULTS#]}',
-                'author.submit.suppFile.transcripts' => '{[#GENRE_NAME_TRANSCRIPTS#]}',
-                'author.submit.suppFile.dataAnalysis' => '{[#GENRE_NAME_DATAANALYSIS#]}',
-                'author.submit.suppFile.dataSet' => '{[#GENRE_NAME_DATASET#]}',
-                'author.submit.suppFile.sourceText' => '{[#GENRE_NAME_SOURCETEXTS#]}',
-            ] as $sourceGenre => $targetGenre) {
-                $genreMap[__($sourceGenre)] = $targetGenre;
-            }
-            $genreMap += [
-                'OTHER' => '{[#GENRE_NAME_OTHER#]}',
-                'SUBMISSION' => '{[#GENRE_NAME_SUBMISSION#]}',
-                'STYLE' => '{[#GENRE_NAME_STYLE#]}',
-                'IMAGE' => '{[#GENRE_NAME_IMAGE#]}'
-            ];
-        }
-
-        return $genreMap;
-    }
 }

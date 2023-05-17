@@ -544,4 +544,36 @@ abstract class BaseXmlWriter
     {
         return $locale;
     }
+
+    /**
+     * Builds the genre map
+     */
+    protected function getGenreMap($locale)
+    {
+        static $genreMap = [];
+
+        $locale = $locale ?: 'en_US';
+        if (!$genreMap[$locale]) {
+            AppLocale::requireComponents([LOCALE_COMPONENT_OCS_AUTHOR], $locale);
+            foreach ([
+                'author.submit.suppFile.researchInstrument' => '{[#GENRE_NAME_RESEARCHINSTRUMENT#]}',
+                'author.submit.suppFile.researchMaterials' => '{[#GENRE_NAME_RESEARCHMATERIALS#]}',
+                'author.submit.suppFile.researchResults' => '{[#GENRE_NAME_RESEARCHRESULTS#]}',
+                'author.submit.suppFile.transcripts' => '{[#GENRE_NAME_TRANSCRIPTS#]}',
+                'author.submit.suppFile.dataAnalysis' => '{[#GENRE_NAME_DATAANALYSIS#]}',
+                'author.submit.suppFile.dataSet' => '{[#GENRE_NAME_DATASET#]}',
+                'author.submit.suppFile.sourceText' => '{[#GENRE_NAME_SOURCETEXTS#]}',
+            ] as $sourceGenre => $targetGenre) {
+                $genreMap[$locale][__($sourceGenre, [], $locale)] = $targetGenre;
+            }
+            $genreMap[$locale] += [
+                'OTHER' => '{[#GENRE_NAME_OTHER#]}',
+                'SUBMISSION' => '{[#GENRE_NAME_SUBMISSION#]}',
+                'STYLE' => '{[#GENRE_NAME_STYLE#]}',
+                'IMAGE' => '{[#GENRE_NAME_IMAGE#]}'
+            ];
+        }
+
+        return $genreMap[$locale];
+    }
 }
