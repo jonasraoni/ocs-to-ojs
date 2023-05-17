@@ -337,7 +337,7 @@ class Importer
                     );
                     $issueId = $this->getInsertId('issues', 'issue_id');
                     $issue->localId = $issueId;
-                    foreach (['title' => $issue->title, 'description' => $issue->description] as $name => $values) {
+                    foreach (['title' => $issue->title ?? [], 'description' => $issue->description ?? []] as $name => $values) {
                         foreach ($values as $locale => $value) {
                             $data = [
                                 'issue_id' => $issueId,
@@ -426,7 +426,7 @@ class Importer
                     $sectionId = $this->getInsertId('sections', 'section_id');
                     $section->localId = $sectionId;
                     $section->localAbbrev = $section->abbrev->{$mainLocale};
-                    foreach (['title' => $section->title, 'abbrev' => $section->abbrev, 'policy' => $section->policy] as $name => $values) {
+                    foreach (['title' => $section->title, 'abbrev' => $section->abbrev, 'policy' => $section->policy ?? []] as $name => $values) {
                         foreach ($values as $locale => $value) {
                             $data = [
                                 'section_id' => $sectionId,
