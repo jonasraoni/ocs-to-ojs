@@ -219,7 +219,7 @@ class Exporter
         $publishedPaperDao = DAORegistry::getDAO('PublishedPaperDAO');
 
         mkdir("{$this->outputPath}/papers", 0777, true);
-        $locale = AppLocale::getPrimaryLocale();
+
         $conferences = count($this->conferences)
             ? array_map(
                 function ($conference) use ($conferenceDao) {
@@ -228,10 +228,11 @@ class Exporter
             )
             : $conferenceDao->getConferences()->toArray();
         foreach ($conferences as $conference) {
-            $this->log('Processing conference ' . $conference->getTitle($locale));
+            $locale = $conference->getPrimaryLocale();
+            $this->log("Processing conference \"{$conference->getTitle($locale)}\"");
             $tracks = $trackDao->getConferenceTracks($conference->getId())->toAssociativeArray('id');
             foreach ($schedConfDao->getSchedConfsByConferenceId($conference->getId())->toArray() as $schedConf) {
-                $this->log('Processing scheduled conference ' . $schedConf->getTitle($locale));
+                $this->log("Processing scheduled conference \"{$schedConf->getTitle($locale)}\"");
                 foreach ($publishedPaperDao->getPublishedPapersBySchedConfId($schedConf->getId())->toArray() as $paper) {
                     $this->log('Processing paper ID ' . $paper->getPaperId());
                     $trackId = $this->uniqueTrackIds[$paper->getTrackId()];

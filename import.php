@@ -84,6 +84,14 @@ class Importer
                 $this->log("Imported papers: {$this->importedPapers}");
                 $this->log("Skipped papers: {$this->skippedPapers}");
                 $this->log("Failed papers: {$this->failedPapers}");
+                if (!$exception) {
+                    $this->log(
+                        "Do not forget to:\n"
+                        . "- Disable the [debug].display_errors setting on OJS\n"
+                        . "- Review the current issue for each imported journal\n"
+                        . "- In case you\'re importing into an existing journal, it's important to review the issues ordering\n"
+                    );
+                }
             }
         }
         echo chr(7);
