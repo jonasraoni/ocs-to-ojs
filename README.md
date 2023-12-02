@@ -1,7 +1,8 @@
 # OCS (Open Conference Systems) to OJS (Open Journal Systems) Migration Tool
 
+[![OCS compatibility](https://img.shields.io/badge/ocs-2.3.6-brightgreen)](https://github.com/pkp/ocs/tree/ocs-stable-2_3_6)
 [![OJS compatibility](https://img.shields.io/badge/ojs-3.2_up_to_3.4-brightgreen)](https://github.com/pkp/ojs/tree/stable-3_4_0)
-[![GitHub release](https://img.shields.io/github/v/release/jonasraoni/ocs-to-ojs?include_prereleases&label=latest%20release)](https://github.com/jonasraoni/ocs-to-ojs/releases)
+[![GitHub release](https://img.shields.io/github/v/release/jonasraoni/ocs-to-ojs?include_prereleases)](https://github.com/jonasraoni/ocs-to-ojs/releases)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/jonasraoni/ocs-to-ojs)
 [![License type](https://img.shields.io/github/license/jonasraoni/ocs-to-ojs)](https://github.com/jonasraoni/ocs-to-ojs/blob/main/LICENSE)
 [![Number of downloads](https://img.shields.io/github/downloads/jonasraoni/ocs-to-ojs/total)](https://github.com/jonasraoni/ocs-to-ojs/releases)
